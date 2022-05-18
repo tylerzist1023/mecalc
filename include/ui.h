@@ -1,11 +1,11 @@
 #pragma once
 
-struct Expr;
+struct ExprString;
 
-void ui_clear(Expr* e, size_t button_index);
-void ui_addchar(Expr* e, size_t button_index);
-void ui_evaluate(Expr* e, size_t button_index);
-void ui_backspace(Expr* e, size_t button_index);
+void ui_clear(ExprString* e, size_t button_index);
+void ui_addchar(ExprString* e, size_t button_index);
+void ui_evaluate(ExprString* e, size_t button_index);
+void ui_backspace(ExprString* e, size_t button_index);
 
 static const char* BUTTON_STRS[] =
 {
@@ -15,7 +15,7 @@ static const char* BUTTON_STRS[] =
     "1", "2", "3", "-", "?",
     "0", " ", ".", "+", "=",
 };
-static void (* const BUTTON_FUNCS[])(Expr*, size_t) =
+static void (* const BUTTON_FUNCS[])(ExprString*, size_t) =
 {
     ui_backspace,   0,              ui_clear,       ui_addchar,     ui_addchar,
     ui_addchar,     ui_addchar,     ui_addchar,     ui_addchar,     0,

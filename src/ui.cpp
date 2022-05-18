@@ -1,22 +1,22 @@
 #include "ui.h"
 #include "expr.h"
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 
-void ui_clear(Expr* e, size_t button_index)
+void ui_clear(ExprString* s, size_t button_index)
 {
-	expr_clear(e);
+	expr_clear(s);
 }
-void ui_addchar(Expr* e, size_t button_index)
+void ui_addchar(ExprString* s, size_t button_index)
 {
 	// TODO: this only appends the first character of the button string
-	expr_append(e, BUTTON_STRS[button_index][0]);
+	expr_append(s, BUTTON_STRS[button_index][0], s->tail);
 }
-void ui_evaluate(Expr* e, size_t button_index)
+void ui_evaluate(ExprString* s, size_t button_index)
 {
-	double result = expr_evaluate(e);
+    Expr expr;
+	double result = expr_evaluate(s, &expr);
 
     if(result == result)
     {
@@ -33,16 +33,16 @@ void ui_evaluate(Expr* e, size_t button_index)
         	if(buf[i] == 'e')
         		buf[i] = 'E';
         }
-        expr_clear(e);
-        expr_set(e, buf);
+        expr_clear(s);
+        expr_set(s, buf);
     }
     else
     {
-        expr_clear(e);
-        expr_set(e, "ERR");
+        // TODO: Show the user that the input is invalid. Like make the background red or something
+        //expr_clear(s);
     }
 }
-void ui_backspace(Expr* e, size_t button_index)
+void ui_backspace(ExprString* s, size_t button_index)
 {
-	expr_backspace(e);
+	expr_backspace(s, s->tail);
 }

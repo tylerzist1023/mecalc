@@ -1,4 +1,3 @@
-#define _CRT_SECURE_NO_WARNINGS
 #define RAYGUI_IMPLEMENTATION
 
 #include "common.h"
@@ -21,8 +20,8 @@ int main(int argc, char* argv[])
 
     SetTargetFPS(60);
 
-    Expr expr;
-    expr_clear(&expr);
+    ExprString expr_str;
+    expr_clear(&expr_str);
 
     while(!WindowShouldClose())
     {
@@ -32,22 +31,22 @@ int main(int argc, char* argv[])
         int key;
         while(key = GetCharPressed())
         {
-            if(is_operand(key) || is_operator(key) || key == '(' || key == ')')
+            if(get_token_type(key) != TYPE_UNKNOWN)
             {
-                expr_input(&expr, key);
+                expr_append(&expr_str, key, expr_str.tail);
             }
-            if(key == 'c')
+            else if(key == 'c')
             {
-                expr_clear(&expr);
+                expr_clear(&expr_str);
             }
         }
         if(IsKeyPressed(KEY_ENTER))
         {
-            ui_evaluate(&expr, 0);
+            ui_evaluate(&expr_str, 0);
         }
         if(IsKeyPressed(KEY_BACKSPACE))
         {
-            ui_backspace(&expr, 0);
+            ui_backspace(&expr_str, 0);
         }
 
         ClearBackground(BLACK);
@@ -56,7 +55,10 @@ int main(int argc, char* argv[])
             GuiSetStyle(TEXTBOX, TEXT_ALIGNMENT, GUI_TEXT_ALIGN_RIGHT);
             GuiSetStyle(DEFAULT, TEXT_SIZE, 40);
             GuiSetStyle(DEFAULT, TEXT_SPACING, 2);
-            GuiTextBox({2,2,(float)SW-2, 64}, expr.str, 20, false);
+            
+            char expr_cstr[EXPR_CAPACITY * TOKEN_CAPACITY];
+            expr_get_str(&expr_str, expr_cstr);
+            GuiTextBox({2,2,(float)SW-2, 64}, expr_cstr, 20, false);
 
             for(int i = 0; i < BUTTONS_SIZE; i++)
             {
@@ -72,7 +74,7 @@ int main(int argc, char* argv[])
                 {
                     if(BUTTON_FUNCS[i] != 0)
                     {
-                        (*BUTTON_FUNCS[i])(&expr, i);
+                        (*BUTTON_FUNCS[i])(&expr_str, i);
                     }
                 }
             }

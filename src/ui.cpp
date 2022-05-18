@@ -6,17 +6,17 @@
 
 void ui_clear(ExprString* s, size_t button_index)
 {
-	expr_clear(s);
+    expr_clear(s);
 }
 void ui_addchar(ExprString* s, size_t button_index)
 {
-	// TODO: this only appends the first character of the button string
-	expr_append(s, BUTTON_STRS[button_index][0], s->tail);
+    // TODO: this only appends the first character of the button string
+    expr_append(s, BUTTON_STRS[button_index][0], s->tail);
 }
 void ui_evaluate(ExprString* s, size_t button_index)
 {
     Expr expr;
-	double result = expr_evaluate(s, &expr);
+    double result = expr_evaluate(s, &expr);
 
     if(result == result)
     {
@@ -30,8 +30,8 @@ void ui_evaluate(ExprString* s, size_t button_index)
         size_t buf_len = strlen(buf);
         for(int i = 0; i < buf_len; i++)
         {
-        	if(buf[i] == 'e')
-        		buf[i] = 'E';
+            if(buf[i] == 'e')
+                buf[i] = 'E';
         }
         expr_clear(s);
         expr_set(s, buf);
@@ -44,5 +44,5 @@ void ui_evaluate(ExprString* s, size_t button_index)
 }
 void ui_backspace(ExprString* s, size_t button_index)
 {
-	expr_backspace(s, s->tail);
+    expr_backspace(s, s->tail);
 }

@@ -55,20 +55,25 @@ struct StringToken
     size_t prev;
     char data[TOKEN_CAPACITY];
     TokenType type;
-    int cursor;
+    int size;
 };
 struct ExprString
 {
     size_t head;
     size_t tail;
     size_t next_vacant;
+
+    // This corresponds to which node the user is currently editing.
+    // It ended up being too annoying passing a cursor value on the outside, so I will just put it here
+    size_t cursor;
+
     StringToken data[EXPR_CAPACITY];
 };
 
 void expr_clear(ExprString* s);
 void expr_clear(Expr* e);
-void expr_append(ExprString* s, char c, size_t index);
-size_t expr_backspace(ExprString* s, size_t index);
+void expr_append(ExprString* s, char c);
+void expr_backspace(ExprString* s);
 double expr_evaluate(ExprString* s, Expr* e);
 void expr_set(ExprString* s, const char* str);
 void expr_print(ExprString* s);

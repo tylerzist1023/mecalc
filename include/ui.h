@@ -2,10 +2,14 @@
 
 struct ExprString;
 
-void ui_clear(ExprString* e, size_t button_index);
-void ui_addchar(ExprString* e, size_t button_index);
-void ui_evaluate(ExprString* e, size_t button_index);
-void ui_backspace(ExprString* e, size_t button_index);
+#define UI_FUNC(name) void ui_##name(ExprString* s, size_t button_index)
+
+UI_FUNC(clear);
+UI_FUNC(addchar);
+UI_FUNC(evaluate);
+UI_FUNC(backspace);
+UI_FUNC(left);
+UI_FUNC(right);
 
 static const char* BUTTON_STRS[] =
 {

@@ -1,13 +1,12 @@
 #include "common.h"
 #include "expr.h"
-#include "raylib.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// TODO: factorial, roots, log, trig, constants like pi and e
+// TODO: factorial, roots, log, trig
 
 static inline double abs(double x)
 {
@@ -80,6 +79,8 @@ void expr_tests()
     expr_test("(", NAN);
     expr_test("43009***93420***20+", NAN);
     expr_test("20++", NAN);
+
+    // TODO: add stuff for append/backspace
 }
 #endif
 
@@ -166,7 +167,7 @@ void token_clear(StringToken *s)
     {
         s->data[i] = '\0';
     }
-    s->cursor = 0;
+    s->size = 0;
     s->type = TYPE_VACANT;
 }
 
@@ -175,6 +176,7 @@ void expr_clear(ExprString* s)
     s->head = 0;
     s->tail = 0;
     s->next_vacant = 1;
+    s->cursor = 0;
     for(size_t i = 0; i < EXPR_CAPACITY; i++)
     {
         token_clear(&s->data[i]);
@@ -197,11 +199,11 @@ static size_t find_next_vacant(ExprString* s, size_t from)
 
 static void token_append(StringToken* s, char c)
 {
-    if(s->cursor == TOKEN_CAPACITY-1)
+    if(s->size == TOKEN_CAPACITY-1)
         return;
-    s->data[s->cursor++] = c;
+    s->data[s->size++] = c;
 }
-void expr_append(ExprString* s, char c, size_t index)
+void expr_append(ExprString* s, char c)
 {
     TokenType type = get_token_type(c);
     PRINT("Appending: %c\n", c);
@@ -212,8 +214,9 @@ void expr_append(ExprString* s, char c, size_t index)
         PRINT("Appended '%c' to head.\n", c);
         token_append(&s->data[s->head], c);
         s->data[s->head].type = type;
+        s->cursor = s->head;
     }
-    else if(s->data[index].type == TYPE_VACANT)
+    else if(s->data[s->cursor].type == TYPE_VACANT)
     {
         return;
     }
@@ -222,62 +225,67 @@ void expr_append(ExprString* s, char c, size_t index)
         if(type == TYPE_UNKNOWN)
             return;
 
-        if(check_if_type_is_insertable(type, s->data[index].type, index == s->head ? TYPE_UNKNOWN : s->data[s->data[index].prev].type) || (s->data[index].cursor != 0 && s->data[index].data[s->data[index].cursor-1] == 'E'))
+        if(check_if_type_is_insertable(type, s->data[s->cursor].type, s->cursor == s->head ? TYPE_UNKNOWN : s->data[s->data[s->cursor].prev].type) || (s->data[s->cursor].size != 0 && s->data[s->cursor].data[s->data[s->cursor].size-1] == 'E'))
         {
-            // If the type of the character matches the type of the index, just insert in the index
-            token_append(&s->data[index], c);
-            s->data[index].type = type;
+            // If the type of the character matches the type of the cursor index, just insert there
+            token_append(&s->data[s->cursor], c);
+            s->data[s->cursor].type = type;
         }
         else
         {
-            if(index == s->tail)
+            if(s->cursor == s->tail)
             {
                 // Check if the list is full
-                if(s->next_vacant == s->tail)
+                if(s->data[s->next_vacant].type != TYPE_VACANT)
                     return;
 
-                s->data[index].next = s->next_vacant;
+                s->data[s->cursor].next = s->next_vacant;
                 s->tail = s->next_vacant;
-                s->data[s->tail].prev = index;
+                s->data[s->tail].prev = s->cursor;
                 s->next_vacant = find_next_vacant(s, s->next_vacant);
 
-                token_append(&s->data[s->data[index].next], c);
-                s->data[s->data[index].next].type = type;
+                token_append(&s->data[s->data[s->cursor].next], c);
+                s->data[s->data[s->cursor].next].type = type;
 
-                if(index != s->head && s->data[index].type == TYPE_AMBIGUOUS)
+                if(s->cursor != s->head && s->data[s->cursor].type == TYPE_AMBIGUOUS)
                 {
-                    s->data[index].type = TYPE_OPERATOR;
+                    s->data[s->cursor].type = TYPE_OPERATOR;
                 }
+
+                s->cursor = s->tail;
             }
             else
             {
-                // If index is NOT the tail, check to see the char is insertable into the next node
-                if(check_if_type_is_insertable(type, s->data[index].type, index == s->head ? TYPE_UNKNOWN : s->data[s->data[index].prev].type) || (s->data[index].cursor != 0 && s->data[index].data[s->data[index].cursor-1] == 'E'))
+                // If cursor is NOT the tail, check to see the char is insertable into the next node
+                if(check_if_type_is_insertable(type, s->data[s->cursor].type, s->cursor == s->head ? TYPE_UNKNOWN : s->data[s->data[s->cursor].prev].type) || (s->data[s->cursor].size != 0 && s->data[s->cursor].data[s->data[s->cursor].size-1] == 'E'))
                 {
                     // Insert the data into the next node
-                    token_append(&s->data[s->data[index].next], c);
-                    s->data[s->data[index].next].type = type;
-                    if(index != s->head && s->data[index].type == TYPE_AMBIGUOUS)
+                    token_append(&s->data[s->data[s->cursor].next], c);
+                    s->data[s->data[s->cursor].next].type = type;
+                    if(s->cursor != s->head && s->data[s->cursor].type == TYPE_AMBIGUOUS)
                     {
-                        s->data[index].type = TYPE_OPERATOR;
+                        s->data[s->cursor].type = TYPE_OPERATOR;
                     }
+
+                    s->cursor = s->data[s->cursor].next;
                 }
                 else
                 {
                     // Check if the list is full
-                    if(s->next_vacant == s->tail)
+                    if(s->data[s->next_vacant].type != TYPE_VACANT)
                         return;
 
-                    // Insert a new node in-between index and index->next
-                    s->data[s->next_vacant].next = s->data[index].next;
-                    s->data[s->next_vacant].prev = index;
-                    s->data[s->data[index].next].prev = s->next_vacant;
-                    s->data[index].next = s->next_vacant;
-                    s->tail = s->next_vacant;
+                    // Insert a new node in-between cursor and cursor->next
+                    s->data[s->next_vacant].next = s->data[s->cursor].next;
+                    s->data[s->next_vacant].prev = s->cursor;
+                    s->data[s->data[s->cursor].next].prev = s->next_vacant;
+                    s->data[s->cursor].next = s->next_vacant;
                     s->next_vacant = find_next_vacant(s, s->next_vacant);
 
-                    token_append(&s->data[s->data[index].next], c);
-                    s->data[s->data[index].next].type = type;
+                    token_append(&s->data[s->data[s->cursor].next], c);
+                    s->data[s->data[s->cursor].next].type = type;
+
+                    s->cursor = s->data[s->cursor].next;
                 }
             }
         }
@@ -288,57 +296,58 @@ void expr_append(ExprString* s, char c, size_t index)
 
 static void token_backspace(StringToken* s)
 {
-    if(s->cursor == 0)
+    if(s->size == 0)
         return;
-    s->data[--s->cursor] = '\0';
+    s->data[--s->size] = '\0';
 }
-size_t expr_backspace(ExprString* s, size_t index)
+void expr_backspace(ExprString* s)
 {
-    size_t next_appropriate_index = index; 
-
     if(s->data[s->head].type == TYPE_VACANT)
     {
         expr_clear(s);
-        next_appropriate_index = 0;
+        s->cursor = 0;
     }
     else
     {
-        token_backspace(&s->data[index]);
+        token_backspace(&s->data[s->cursor]);
 
         // If the node is empty after the deletion, we need to delete the node
-        if(s->data[index].cursor == 0)
+        if(s->data[s->cursor].size == 0)
         {
-            if(index == s->head && index == s->tail)
+            size_t cursor_old = s->cursor;
+            if(s->cursor == s->head && s->cursor == s->tail)
             {
                 expr_clear(s);
-                next_appropriate_index = 0;
+                s->cursor = 0;
             }
-            else if(index == s->head)
+            else if(s->cursor == s->head)
             {
                 s->head = s->data[s->head].next;
                 s->data[s->head].prev = 0;
 
-                next_appropriate_index = s->head;
+                s->cursor = s->head;
             }
-            else if(index == s->tail)
+            else if(s->cursor == s->tail)
             {
                 s->tail = s->data[s->tail].prev;
                 s->data[s->tail].next = 0;
 
-                next_appropriate_index = s->tail;
+                s->cursor = s->tail;
             }
             else
             {
-                s->data[s->data[index].prev].next = s->data[index].next;
-                s->data[s->data[index].next].prev = s->data[index].prev;
+                s->data[s->data[s->cursor].prev].next = s->data[s->cursor].next;
+                s->data[s->data[s->cursor].next].prev = s->data[s->cursor].prev;
+
+                // TODO: Fix bug when user deletes an operator between two numerical values, the values don't get catted together.
+                // For example, take 1+1. When the user removes the plus, this becomes 11, but this evaluates to one! It should be eleven! 
 
                 // TODO: Should test to see which one is actually more appropriate, since I just guessed here
-                next_appropriate_index = s->data[s->data[index].prev].next;
+                s->cursor = s->data[s->data[s->cursor].next].prev;
             }
-            token_clear(&s->data[index]);
+            token_clear(&s->data[cursor_old]);
         }
     }
-    return next_appropriate_index;
 }
 
 void expr_clear(Expr* e)
@@ -574,6 +583,6 @@ void expr_set(ExprString* s, const char* str)
     expr_clear(s);
     for(const char* it = str; *it != '\0'; it++)
     {
-        expr_append(s, *it, s->tail);
+        expr_append(s, *it);
     }
 }

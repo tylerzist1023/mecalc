@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
         {
             if(get_token_type(key) != TYPE_UNKNOWN)
             {
-                expr_append(&expr_str, key, expr_str.tail);
+                expr_append(&expr_str, key);
             }
             else if(key == 'c')
             {
@@ -43,6 +43,16 @@ int main(int argc, char* argv[])
         if(IsKeyPressed(KEY_ENTER))
         {
             ui_evaluate(&expr_str, 0);
+        }
+        if(IsKeyPressed(KEY_LEFT))
+        {
+            ui_left(&expr_str, 0);
+            PRINT("Left, New cursor: %d\n", expr_str.cursor);
+        }
+        if(IsKeyPressed(KEY_RIGHT))
+        {
+            ui_right(&expr_str, 0);
+            PRINT("Right, New cursor: %d\n", expr_str.cursor);
         }
         if(IsKeyPressed(KEY_BACKSPACE))
         {
@@ -60,6 +70,7 @@ int main(int argc, char* argv[])
             expr_get_str(&expr_str, expr_cstr);
             GuiTextBox({2,2,(float)SW-2, 64}, expr_cstr, 20, false);
 
+            // TODO: Show the token the user is currently editing
             for(int i = 0; i < BUTTONS_SIZE; i++)
             {
                 if(GuiButton(

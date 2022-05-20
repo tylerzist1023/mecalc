@@ -4,16 +4,21 @@
 #include <string.h>
 #include <math.h>
 
-UI_FUNC(clear)
+namespace ui
+{
+namespace normal
+{
+
+FUNC_DEF(clear)
 {
     expr_clear(s);
 }
-UI_FUNC(addchar)
+FUNC_DEF(addchar)
 {
     // TODO: this only appends the first character of the button string
     expr_append(s, BUTTON_STRS[button_index][0]);
 }
-UI_FUNC(evaluate)
+FUNC_DEF(evaluate)
 {
     Expr expr;
     double result = expr_evaluate(s, &expr);
@@ -42,17 +47,20 @@ UI_FUNC(evaluate)
         //expr_clear(s);
     }
 }
-UI_FUNC(backspace)
+FUNC_DEF(backspace)
 {
     expr_backspace(s);
 }
-UI_FUNC(left)
+FUNC_DEF(left)
 {
     if(s->cursor != s->head)
         s->cursor = s->data[s->cursor].prev;
 }
-UI_FUNC(right)
+FUNC_DEF(right)
 {
     if(s->cursor != s->tail)
         s->cursor = s->data[s->cursor].next;
 }
+
+};
+};

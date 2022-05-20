@@ -7,6 +7,7 @@
 #include <string.h>
 
 // TODO: factorial, roots, log, trig
+// TODO: Correction methods for append/backspace that ensure the expression is healthy. It must prevent things like [9] [-9] from showing up.
 
 static inline double abs(double x)
 {
@@ -29,7 +30,7 @@ static bool expr_test(const char* buf, double value)
 
     expr_print(&expr_str);
     printf("Expr test case %d: %s == %lf", ++expr_case, buf, value);
-    if(result == result)
+    if(result == result && value == value)
         printf(" ... %s (evaluated to %lf)\n", (abs(result - value) <= epsilon) ? "\033[32mPASSED\033[0m" : "\033[31mFAILED\033[0m", result);
     else
         printf(" ... %s (evaluated to %lf)\n", (abs(result - value) <= epsilon) ? "\033[31mFAILED\033[0m" : "\033[32mPASSED\033[0m", result);
@@ -71,6 +72,8 @@ void expr_tests()
     expr_test("4^(2)(2)", 32);
     expr_test("4^(2)2", 32);
     expr_test("ee", 7.38905609893);
+    expr_test("-e", -M_E);
+    expr_test("2*-p", 2*-M_PI);
 
     // fail cases
     expr_test("-1^.5", NAN);
@@ -89,12 +92,12 @@ void expr_print(ExprString* s)
     size_t si = s->head;
     while(si != s->tail)
     {
-        PRINT("[%s] ", s->data[si].data);
+        PRINT("%zu:[%s] ", si, s->data[si].data);
         si = s->data[si].next;
     }
     if(s->data[si].type != TYPE_VACANT)
     {
-        PRINT("[%s] ", s->data[si].data);
+        PRINT("%zu:[%s] ", si, s->data[si].data);
     }
     PRINT("\n");
 }
@@ -146,6 +149,8 @@ inline TokenType get_token_type(char c)
         case '-':
         case '+':
             return TYPE_AMBIGUOUS;
+        default:
+            return TYPE_UNKNOWN;
     }
     return TYPE_VACANT;
 }
@@ -159,7 +164,7 @@ inline bool check_if_type_is_insertable(TokenType c, TokenType t, TokenType pt)
     return false;
 }
 
-void token_clear(StringToken *s)
+static void token_clear(StringToken *s)
 {
     s->next = 0;
     s->prev = 0;
@@ -393,9 +398,34 @@ static void str_to_expr(ExprString* s, Expr* e)
             case TYPE_BRACKET_OPEN:
             case TYPE_BRACKET_CLOSE:
             case TYPE_OPERATOR:
-            case TYPE_OPERAND_CONSTANT:
                 e->data[ei].c = s->data[si].data[0];
                 break;
+            case TYPE_OPERAND_CONSTANT:
+            {
+                double value = 1.0;
+                size_t constant_index = 0;
+                if(s->data[si].data[0] == '-')
+                {
+                    value *= -1.0;
+                    constant_index = 1;
+                }
+                else if(s->data[si].data[0] == '+')
+                {
+                    value *= 1.0;
+                    constant_index = 1;
+                }
+                switch(s->data[si].data[constant_index])
+                {
+                    case 'e':
+                        value *= M_E;
+                        break;
+                    case 'p':
+                        value *= M_PI;
+                        break;
+                }
+                e->data[ei].d = value;
+                break;
+            }
             case TYPE_OPERAND_NUMBER:
                 e->data[ei].d = strtod(s->data[si].data, 0);
                 break;
@@ -416,9 +446,34 @@ static void str_to_expr(ExprString* s, Expr* e)
             case TYPE_BRACKET_OPEN:
             case TYPE_BRACKET_CLOSE:
             case TYPE_OPERATOR:
-            case TYPE_OPERAND_CONSTANT:
                 e->data[ei].c = s->data[si].data[0];
                 break;
+            case TYPE_OPERAND_CONSTANT:
+            {
+                double value = 1.0;
+                size_t constant_index = 0;
+                if(s->data[si].data[0] == '-')
+                {
+                    value *= -1.0;
+                    constant_index = 1;
+                }
+                else if(s->data[si].data[0] == '+')
+                {
+                    value *= 1.0;
+                    constant_index = 1;
+                }
+                switch(s->data[si].data[constant_index])
+                {
+                    case 'e':
+                        value *= M_E;
+                        break;
+                    case 'p':
+                        value *= M_PI;
+                        break;
+                }
+                e->data[ei].d = value;
+                break;
+            }
             case TYPE_OPERAND_NUMBER:
                 e->data[ei].d = strtod(s->data[si].data, 0);
                 break;
@@ -542,18 +597,7 @@ double expr_evaluate(ExprString* s, Expr* e)
                     }
                     expr_append(&ops, {.type = TYPE_OPERATOR, .c = '*'});
                 }
-                double constant;
-                switch(e->data[i].c)
-                {
-                    case 'e':
-                        constant = M_E;
-                        break;
-                    case 'p':
-                        constant = M_PI;
-                        break;
-                }
-
-                expr_append(&values, {.type = TYPE_OPERAND_NUMBER, .d = constant});
+                expr_append(&values, {.type = TYPE_OPERAND_NUMBER, .d = e->data[i].d});
                 break;
             case TYPE_OPERATOR:
                 while(ops.size != 0 && prec(expr_top(&ops).c) >= prec(e->data[i].c))

@@ -11,35 +11,33 @@ namespace normal
 
 FUNC_DEF(clear)
 {
-    expr_clear(s);
+    memset(str, 0, EXPR_CAPACITY);
 }
 FUNC_DEF(addchar)
 {
-    // TODO: this only appends the first character of the button string
-    expr_append(s, BUTTON_STRS[button_index][0]);
+    if(strlen(str) < EXPR_CAPACITY)
+        str[strlen(str)] = BUTTON_STRS[button_index][0];
 }
 FUNC_DEF(evaluate)
 {
-    Expr expr;
-    double result = expr_evaluate(s, &expr);
+    double result = expr_evaluate(str);
 
     if(result == result)
     {
-        char buf[EXPR_CAPACITY];
-        memset(buf, 0, EXPR_CAPACITY);
+        // char buf[EXPR_CAPACITY];
+        // memset(buf, 0, EXPR_CAPACITY);
 
-        snprintf(buf, EXPR_CAPACITY, "%G", result);
+        memset(str, 0, EXPR_CAPACITY);
+        snprintf(str, EXPR_CAPACITY, "%G", result);
 
         // Extremely sus. For some reason %G always outputs a lower case e for scientific notation, and since we use E for that, change it.
         // Why not just use e, you may ask? Because we intend to use e for Euler's number
-        size_t buf_len = strlen(buf);
-        for(int i = 0; i < buf_len; i++)
+        size_t str_len = strlen(str);
+        for(int i = 0; i < str_len; i++)
         {
-            if(buf[i] == 'e')
-                buf[i] = 'E';
+            if(str[i] == 'e')
+                str[i] = 'E';
         }
-        expr_clear(s);
-        expr_set(s, buf);
     }
     else
     {
@@ -49,17 +47,14 @@ FUNC_DEF(evaluate)
 }
 FUNC_DEF(backspace)
 {
-    expr_backspace(s);
+    if(*str != '\0')
+        str[strlen(str)-1] = '\0';
 }
 FUNC_DEF(left)
 {
-    if(s->cursor != s->head)
-        s->cursor = s->data[s->cursor].prev;
 }
 FUNC_DEF(right)
 {
-    if(s->cursor != s->tail)
-        s->cursor = s->data[s->cursor].next;
 }
 
 };

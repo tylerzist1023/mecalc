@@ -1,45 +1,55 @@
-#include "common.h"
 #include "expr.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stack>
 
-// TODO: factorial, roots, log, trig
-// TODO: Correction methods for append/backspace that ensure the expression is healthy. It must prevent things like [9] [-9] from showing up.
-
-static inline double abs(double x)
+static void expr_test(const char* str, double answer)
 {
-    if(x < 0.0)
-        return x*-1;
-    return x;
-}
+    double result = expr_evaluate(str);
+    static uint32_t case_num = 0; case_num++;
+    const double epsilon = 0.0001;
 
-#ifdef DEBUG
-static bool expr_test(const char* buf, double value)
-{
-    static int expr_case = 0;
-
-    ExprString expr_str;
-    expr_set(&expr_str, buf);
-    Expr expr;
-    expr_clear(&expr);
-    double result = expr_evaluate(&expr_str, &expr);
-    double epsilon = 0.001;
-
-    expr_print(&expr_str);
-    printf("Expr test case %d: %s == %lf", ++expr_case, buf, value);
-    if(result == result && value == value)
-        printf(" ... %s (evaluated to %lf)\n", (abs(result - value) <= epsilon) ? "\033[32mPASSED\033[0m" : "\033[31mFAILED\033[0m", result);
+    if(result == result || answer == answer)
+    {
+        printf("Test case %u: %s == %lf ... %s (evaluated to %lf)\n",
+            case_num,
+            str,
+            answer,
+            abs(result - answer) <= epsilon ? "\x1b[32mPASSED\x1b[0m" : "\x1b[31mFAILED\x1b[0m",
+            result);
+    }
     else
-        printf(" ... %s (evaluated to %lf)\n", (abs(result - value) <= epsilon) ? "\033[31mFAILED\033[0m" : "\033[32mPASSED\033[0m", result);
-
-    return abs(result - value) <= epsilon;
+    {
+        printf("Test case %u: %s == %lf ... %s (evaluated to %lf)\n",
+            case_num,
+            str,
+            answer,
+            abs(result - answer) <= epsilon ? "\x1b[31mFAILED\x1b[0m" : "\x1b[32mPASSED\x1b[0m",
+            result);
+    }
 }
 
 void expr_tests()
 {
+    expr_test("2+2", 4);
+    expr_test("2/2+1*(5*(1+4))", 26);
+    expr_test("2*-1", -2);
+    expr_test("2*(-1)", -2);
+    expr_test("-1*2", -2);
+    expr_test("3*-(2+-6)", 12);
+    expr_test("(2+-6)", -4);
+    expr_test("(-6)", -6);
+    expr_test("5!", 120);
+    expr_test("(2+5!)", 122);
+    expr_test("2(-6)", -12);
+    expr_test("-2(6)", -12);
+    expr_test("(-2)6", -12);
+    expr_test("--1", 1);
+    expr_test("-+1", -1);
+    expr_test("+-1", -1);
+
+    /* old tests */
     expr_test("2+2", 4.0);
     expr_test("2-2", 0.0);
     expr_test("2+4*8", 34.0);
@@ -82,276 +92,156 @@ void expr_tests()
     expr_test("(", NAN);
     expr_test("43009***93420***20+", NAN);
     expr_test("20++", NAN);
-
-    // TODO: add stuff for append/backspace
-}
-#endif
-
-void expr_print(ExprString* s)
-{
-    size_t si = s->head;
-    while(si != s->tail)
-    {
-        PRINT("%zu:[%s] ", si, s->data[si].data);
-        si = s->data[si].next;
-    }
-    if(s->data[si].type != TYPE_VACANT)
-    {
-        PRINT("%zu:[%s] ", si, s->data[si].data);
-    }
-    PRINT("\n");
 }
 
-void expr_get_str(ExprString* s, char* str)
+static bool isdigit(char c)
 {
-    memset(str, 0, EXPR_CAPACITY * TOKEN_CAPACITY);
-
-    size_t si = s->head;
-    while(si != s->tail)
-    {
-        strncat(str, s->data[si].data, EXPR_CAPACITY * TOKEN_CAPACITY);
-        si = s->data[si].next;
-    }
-    if(s->data[si].type != TYPE_VACANT)
-    {
-        strncat(str, s->data[si].data, EXPR_CAPACITY * TOKEN_CAPACITY);
-    }
+    return c >= '0' && c <= '9' || c == '.' || c == 'E';
+}
+static bool isconstant(char c)
+{
+    return c == 'e' || c == 'p';
 }
 
-inline TokenType get_token_type(char c)
+static Token token_default()
 {
-    switch(c)
-    {
-        case '(':
-            return TYPE_BRACKET_OPEN;
-        case ')':
-            return TYPE_BRACKET_CLOSE;
-        case '*':
-        case '/':
-        case '^':
-            return TYPE_OPERATOR;
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-        case '.':
-        case 'E':
-            return TYPE_OPERAND_NUMBER;
-        case 'e':
-        case 'p': // TODO: Hmmm, works for now, but later I may want to change this.
-            return TYPE_OPERAND_CONSTANT;
-        case '-':
-        case '+':
-            return TYPE_AMBIGUOUS;
-        default:
-            return TYPE_UNKNOWN;
-    }
-    return TYPE_VACANT;
+    return {.type = TK_UNKNOWN, .c = '\0', .i = 0};
 }
 
-inline bool check_if_type_is_insertable(TokenType c, TokenType t, TokenType pt)
+static int factorial(int x)
 {
-    if((c == TYPE_OPERAND_NUMBER) && c == t)
-        return true;
-    else if(t == TYPE_AMBIGUOUS && (c == TYPE_OPERAND_CONSTANT || c == TYPE_OPERAND_NUMBER) && (pt == TYPE_UNKNOWN || pt == TYPE_BRACKET_OPEN || pt == TYPE_OPERATOR))
-        return true;
-    return false;
+    // TODO: gamma function
+    if(x < 0)
+        return 0;
+    else if(x <= 1)
+        return 1;
+    return x*factorial(x-1);
+}
+static inline double negate(double x)
+{
+    return -x;
 }
 
-static void token_clear(StringToken *s)
+static Token scan_token(const char* str, const char** next, 
+    bool* unary_prefix, OperatorType* unary_prefix_type,
+    bool* unary_postfix, OperatorType* unary_postfix_type)
 {
-    s->next = 0;
-    s->prev = 0;
-    for(size_t i = 0; i < TOKEN_CAPACITY; i++)
+    Token t = token_default();
+    const char* _next = str;
+    if(isdigit(*str) || isconstant(*str))
     {
-        s->data[i] = '\0';
-    }
-    s->size = 0;
-    s->type = TYPE_VACANT;
-}
-
-void expr_clear(ExprString* s)
-{
-    s->head = 0;
-    s->tail = 0;
-    s->next_vacant = 1;
-    s->cursor = 0;
-    for(size_t i = 0; i < EXPR_CAPACITY; i++)
-    {
-        token_clear(&s->data[i]);
-        s->data[i].index = i;
-    }
-}
-
-// TODO: This is a bad and naive O(n) solution. Make it better!
-static size_t find_next_vacant(ExprString* s, size_t from)
-{
-    for(size_t i = (from+1)%EXPR_CAPACITY; i != from; i = (i+1)%EXPR_CAPACITY)
-    {
-        if(s->data[i].type == TYPE_VACANT)
+        if(isconstant(*str))
         {
-            return i;
-        }
-    }
-    return from;
-}
-
-static void token_append(StringToken* s, char c)
-{
-    if(s->size == TOKEN_CAPACITY-1)
-        return;
-    s->data[s->size++] = c;
-}
-void expr_append(ExprString* s, char c)
-{
-    TokenType type = get_token_type(c);
-    PRINT("Appending: %c\n", c);
-
-    // TODO: This can be a chain of else if, not nested elses (they are exactly the same thing although one may be more readable)
-    if(s->data[s->head].type == TYPE_VACANT)
-    {
-        PRINT("Appended '%c' to head.\n", c);
-        token_append(&s->data[s->head], c);
-        s->data[s->head].type = type;
-        s->cursor = s->head;
-    }
-    else if(s->data[s->cursor].type == TYPE_VACANT)
-    {
-        return;
-    }
-    else
-    {   
-        if(type == TYPE_UNKNOWN)
-            return;
-
-        if(check_if_type_is_insertable(type, s->data[s->cursor].type, s->cursor == s->head ? TYPE_UNKNOWN : s->data[s->data[s->cursor].prev].type) || (s->data[s->cursor].size != 0 && s->data[s->cursor].data[s->data[s->cursor].size-1] == 'E'))
-        {
-            // If the type of the character matches the type of the cursor index, just insert there
-            token_append(&s->data[s->cursor], c);
-            s->data[s->cursor].type = type;
+            switch(*str)
+            {
+                case 'e':
+                    t.type = TK_N_CONST;
+                    t.d = M_E;
+                    break;
+                case 'p':
+                    t.type = TK_N_CONST;
+                    t.d = M_PI;
+                    break;
+            }
+            _next++;
         }
         else
         {
-            if(s->cursor == s->tail)
-            {
-                // Check if the list is full
-                if(s->data[s->next_vacant].type != TYPE_VACANT)
-                    return;
-
-                s->data[s->cursor].next = s->next_vacant;
-                s->tail = s->next_vacant;
-                s->data[s->tail].prev = s->cursor;
-                s->next_vacant = find_next_vacant(s, s->next_vacant);
-
-                token_append(&s->data[s->data[s->cursor].next], c);
-                s->data[s->data[s->cursor].next].type = type;
-
-                if(s->cursor != s->head && s->data[s->cursor].type == TYPE_AMBIGUOUS)
-                {
-                    s->data[s->cursor].type = TYPE_OPERATOR;
-                }
-
-                s->cursor = s->tail;
-            }
-            else
-            {
-                // If cursor is NOT the tail, check to see the char is insertable into the next node
-                if(check_if_type_is_insertable(type, s->data[s->cursor].type, s->cursor == s->head ? TYPE_UNKNOWN : s->data[s->data[s->cursor].prev].type) || (s->data[s->cursor].size != 0 && s->data[s->cursor].data[s->data[s->cursor].size-1] == 'E'))
-                {
-                    // Insert the data into the next node
-                    token_append(&s->data[s->data[s->cursor].next], c);
-                    s->data[s->data[s->cursor].next].type = type;
-                    if(s->cursor != s->head && s->data[s->cursor].type == TYPE_AMBIGUOUS)
-                    {
-                        s->data[s->cursor].type = TYPE_OPERATOR;
-                    }
-
-                    s->cursor = s->data[s->cursor].next;
-                }
-                else
-                {
-                    // Check if the list is full
-                    if(s->data[s->next_vacant].type != TYPE_VACANT)
-                        return;
-
-                    // Insert a new node in-between cursor and cursor->next
-                    s->data[s->next_vacant].next = s->data[s->cursor].next;
-                    s->data[s->next_vacant].prev = s->cursor;
-                    s->data[s->data[s->cursor].next].prev = s->next_vacant;
-                    s->data[s->cursor].next = s->next_vacant;
-                    s->next_vacant = find_next_vacant(s, s->next_vacant);
-
-                    token_append(&s->data[s->data[s->cursor].next], c);
-                    s->data[s->data[s->cursor].next].type = type;
-
-                    s->cursor = s->data[s->cursor].next;
-                }
-            }
+            t.type = TK_N_VALUE;
+            t.d = strtod(str, (char**)&_next);
         }
+        *unary_postfix = true;
+        *unary_postfix_type = OP_NUL;
+        *unary_prefix = false;
+        *unary_prefix_type = OP_NUL;
     }
-    PRINT("Append ending: head: %zu, tail: %zu\n", s->head, s->tail);
-    expr_print(s);
-}
-
-static void token_backspace(StringToken* s)
-{
-    if(s->size == 0)
-        return;
-    s->data[--s->size] = '\0';
-}
-void expr_backspace(ExprString* s)
-{
-    if(s->data[s->head].type == TYPE_VACANT)
+    else 
     {
-        expr_clear(s);
-        s->cursor = 0;
-    }
-    else
-    {
-        token_backspace(&s->data[s->cursor]);
-
-        // If the node is empty after the deletion, we need to delete the node
-        if(s->data[s->cursor].size == 0)
+        t.c = *str;
+        switch(*str)
         {
-            size_t cursor_old = s->cursor;
-            if(s->cursor == s->head && s->cursor == s->tail)
-            {
-                expr_clear(s);
-                s->cursor = 0;
-            }
-            else if(s->cursor == s->head)
-            {
-                s->head = s->data[s->head].next;
-                s->data[s->head].prev = 0;
+            case '(':
+                t.type = TK_BRACKET_OPEN;
+                *unary_prefix = true;
+                break;
+            case ')':
+                t.type = TK_BRACKET_CLOSE;
+                break;
 
-                s->cursor = s->head;
-            }
-            else if(s->cursor == s->tail)
-            {
-                s->tail = s->data[s->tail].prev;
-                s->data[s->tail].next = 0;
+            case '+':
+                t.type = TK_OPERATOR;
+                if(*unary_prefix) //TODO: broken
+                {
+                    t.o = OP_POS;
+                    *unary_prefix_type = OP_POS;
+                    break;
+                }
+                t.o = OP_ADD;
+                *unary_prefix = true;
+                break;
+            case '-':
+                t.type = TK_OPERATOR;
+                if(*unary_prefix)
+                {
+                    t.o = OP_NEG;
+                    *unary_prefix_type = OP_NEG;
+                    break;
+                }
+                t.o = OP_SUB;
+                *unary_prefix = true;
+                break;
+            case '*':
+                t.type = TK_OPERATOR;
+                t.o = OP_MUL;
+                *unary_prefix = true;
+                break;
+            case '/':
+                t.type = TK_OPERATOR;
+                t.o = OP_DIV;
+                *unary_prefix = true;
+                break;
+            case '^':
+                t.type = TK_OPERATOR;
+                t.o = OP_POW;
+                *unary_prefix = true;
+                break;
 
-                s->cursor = s->tail;
-            }
-            else
-            {
-                s->data[s->data[s->cursor].prev].next = s->data[s->cursor].next;
-                s->data[s->data[s->cursor].next].prev = s->data[s->cursor].prev;
+            case '!':
+                t.type = TK_OPERATOR;
+                t.o = OP_FAC;
+                if(*unary_postfix)
+                {
+                    *unary_postfix_type = OP_FAC;
 
-                // TODO: Fix bug when user deletes an operator between two numerical values, the values don't get catted together.
-                // For example, take 1+1. When the user removes the plus, this becomes 11, but this evaluates to one! It should be eleven! 
+                }
+                break;
 
-                // TODO: Should test to see which one is actually more appropriate, since I just guessed here
-                s->cursor = s->data[s->data[s->cursor].next].prev;
-            }
-            token_clear(&s->data[cursor_old]);
+            default:
+                t.type = TK_UNKNOWN;
+                break;
         }
+        _next++;
+
+        *unary_postfix = false;
+    }
+
+    if(next) *next = _next;
+    return t;
+}
+
+static void expr_tokenize(const char* str, Expr* e)
+{
+    bool unary_prefix = true;
+    bool unary_postfix = false;
+    OperatorType unary_prefix_type = OP_NUL;
+    OperatorType unary_postfix_type = OP_NUL;
+    for(const char* c = str; (*c != '\0') && (e->size < EXPR_CAPACITY);)
+    {
+        const char* next;
+        Token t = scan_token(c, &next, &unary_prefix, &unary_prefix_type, &unary_postfix, &unary_postfix_type);
+        c = next;
+
+        e->data[e->size++] = t;
     }
 }
 
@@ -360,273 +250,236 @@ void expr_clear(Expr* e)
     e->size = 0;
     for(size_t i = 0; i < EXPR_CAPACITY; i++)
     {
-        e->data[i].type = TYPE_VACANT;
-        e->data[i].i = 0;
+        e->data[i] = token_default();
     }
 }
-static void expr_append(Expr* e, Token value)
-{
-    if(e->size == EXPR_CAPACITY-1)
-        return;
-    e->data[e->size++] = value;
-}
-static Token expr_backspace(Expr* e)
-{
-    if(e->size == 0)
-        return {.type = TYPE_VACANT, .d = 0.0};
-    Token value = e->data[e->size-1];
-    e->data[--e->size].type = TYPE_VACANT;
-    e->data[e->size].i = 0;
-    return value;
-}
-static Token expr_top(Expr* e)
-{
-    if(e->size == 0)
-        return {.type = TYPE_VACANT, .d = 0.0};
-    return e->data[e->size-1];
-}
 
-static void str_to_expr(ExprString* s, Expr* e)
+static void token_print(Token t)
 {
-    size_t si = s->head;
-    size_t ei = 0;
-    while(si != s->tail)
+    switch(t.type)
     {
-        e->data[ei].type = s->data[si].type;
-        switch(s->data[si].type)
-        {   
-            case TYPE_BRACKET_OPEN:
-            case TYPE_BRACKET_CLOSE:
-            case TYPE_OPERATOR:
-                e->data[ei].c = s->data[si].data[0];
-                break;
-            case TYPE_OPERAND_CONSTANT:
-            {
-                double value = 1.0;
-                size_t constant_index = 0;
-                if(s->data[si].data[0] == '-')
-                {
-                    value *= -1.0;
-                    constant_index = 1;
-                }
-                else if(s->data[si].data[0] == '+')
-                {
-                    value *= 1.0;
-                    constant_index = 1;
-                }
-                switch(s->data[si].data[constant_index])
-                {
-                    case 'e':
-                        value *= M_E;
-                        break;
-                    case 'p':
-                        value *= M_PI;
-                        break;
-                }
-                e->data[ei].d = value;
-                break;
-            }
-            case TYPE_OPERAND_NUMBER:
-                e->data[ei].d = strtod(s->data[si].data, 0);
-                break;
-            default:
-                // TODO: Help.
-                break;
-        }
-
-        si = s->data[si].next;
-        ei++;
-    }
-    // TODO: This is a copypasta. Needs to get cleaned up
-    if(s->data[si].type != TYPE_VACANT)
-    {
-        e->data[ei].type = s->data[si].type;
-        switch(s->data[si].type)
-        {   
-            case TYPE_BRACKET_OPEN:
-            case TYPE_BRACKET_CLOSE:
-            case TYPE_OPERATOR:
-                e->data[ei].c = s->data[si].data[0];
-                break;
-            case TYPE_OPERAND_CONSTANT:
-            {
-                double value = 1.0;
-                size_t constant_index = 0;
-                if(s->data[si].data[0] == '-')
-                {
-                    value *= -1.0;
-                    constant_index = 1;
-                }
-                else if(s->data[si].data[0] == '+')
-                {
-                    value *= 1.0;
-                    constant_index = 1;
-                }
-                switch(s->data[si].data[constant_index])
-                {
-                    case 'e':
-                        value *= M_E;
-                        break;
-                    case 'p':
-                        value *= M_PI;
-                        break;
-                }
-                e->data[ei].d = value;
-                break;
-            }
-            case TYPE_OPERAND_NUMBER:
-                e->data[ei].d = strtod(s->data[si].data, 0);
-                break;
-            default:
-                // TODO: Help.
-                break;
-        }
-    }
-    e->size = ei+1;
-}
-
-static int prec(char c)
-{
-    if (c == '^')
-        return 3;
-    else if (c == '/' || c == '*')
-        return 2;
-    else if (c == '+' || c == '-')
-        return 1;
-    else
-        return 0;
-}
-static double evaluate_op(Expr* values, Expr* ops)
-{
-    double val1 = expr_top(values).d; expr_backspace(values);
-    double val2 = expr_top(values).d; expr_backspace(values);
-    double result = 0.0;
-    switch(expr_top(ops).c)
-    {
-        case '+':
-            result = val2 + val1;
-            break;
-        case '-':
-            result = val2 - val1;
-            break;
-        case '*':
-            result = val2 * val1;
-            break;
-        case '/':
-            if(val1 == 0)
-                result = NAN;
-            else
-                result = val2 / val1;
-            break;
-        case '^':
-            result = pow(val2, val1);
+        case TK_N_VALUE:
+        case TK_N_CONST:
+            PRINT("[%lf] ", t.d);
             break;
         default:
-            result = 0.0;
+            PRINT("[%d %c] ", t.o, t.c);
             break;
     }
-    PRINT("Operation: %lf %c %lf = %lf\n", val2, expr_top(ops).c, val1, result);
-    expr_backspace(ops);
-    Token result_token = {.type = TYPE_OPERAND_NUMBER, .d = result};
-    expr_append(values, result_token);
-
-    return result;
 }
-// TODO: These expression edge cases are starting to get out of hand. Should come up with a better way to deal with this instead of hard-coding. 
-double expr_evaluate(ExprString* s, Expr* e)
+
+static inline int get_arg_count(OperatorType o)
 {
-    expr_clear(e);
-    str_to_expr(s, e);
-
-    Expr values;
-    Expr ops;
-    expr_clear(&values);
-    expr_clear(&ops);
-
-    for(int i = 0; i < e->size; i++)
+    switch(o)
     {
-        PRINT("Eval: %c %lf\n", e->data[i].c, e->data[i].d);
-        switch(e->data[i].type)
+        case OP_ADD:
+        case OP_SUB:
+        case OP_MUL:
+        case OP_DIV:
+        case OP_POW:
+            return 2;
+        case OP_POS:
+        case OP_NEG:
+        case OP_FAC:
+            return 1;
+        default:
+            return 1;
+    }
+}
+
+static inline void evaluate_op(std::stack<Token>& ops, std::stack<Token>& values)
+{
+    if(values.empty() || ops.empty())
+    {
+        while(!ops.empty()) ops.pop();
+        while(!values.empty()) values.pop();
+        values.push({.type = TK_N_VALUE, .d = NAN});
+        return;
+    }
+    // if(ops.top().type != TK_OPERATOR)
+    // {
+    //     ops.pop();
+    //     return;
+    // }
+
+    int arg_count = get_arg_count(ops.top().o);
+    if(arg_count == 1)
+    {
+        Token val1 = values.top(); values.pop();
+
+        switch(ops.top().o)
         {
-            case TYPE_BRACKET_OPEN:
-                if(i != 0 && (e->data[i-1].type == TYPE_OPERAND_NUMBER || e->data[i-1].type == TYPE_OPERAND_CONSTANT))
+            case OP_POS:
+                break;
+            case OP_NEG:
+                PRINT("Negated %lf\n", val1.d);
+                val1.d = -val1.d;
+                break;
+            case OP_FAC:
+                val1.d = (double)factorial(val1.d);
+                break;
+            default:
+                break;
+        }
+        values.push(val1);
+    }
+    else if(arg_count == 2)
+    {
+        Token val2 = values.top(); values.pop();
+
+        if(values.empty() || ops.empty())
+        {
+            while(!ops.empty()) ops.pop();
+            while(!values.empty()) values.pop();
+            values.push({.type = TK_N_VALUE, .d = NAN});
+            return;
+        }
+
+        Token val1 = values.top(); values.pop();
+
+        double result = 0.0;
+
+        switch(ops.top().o)
+        {
+            case OP_ADD:
+                result = val1.d + val2.d;
+                break;
+            case OP_SUB:
+                result = val1.d - val2.d;
+                break;
+            case OP_MUL:
+                result = val1.d * val2.d;
+                break;
+            case OP_DIV:
+                if(val2.d == 0)
+                    result = NAN;
+                else
+                    result = val1.d / val2.d;
+                break;
+            case OP_POW:
+                result = pow(val1.d, val2.d);
+                break;
+            default:
+                break;
+        }
+        values.push({.type = TK_N_VALUE, .d = result});
+    }
+    ops.pop();
+}
+
+static inline int precedence(OperatorType o)
+{
+    switch(o)
+    {
+        case OP_ADD:
+        case OP_SUB:
+            return 1;
+        case OP_MUL:
+        case OP_DIV:
+            return 2;
+        case OP_POW:
+            return 3;
+        case OP_POS:
+        case OP_NEG:
+            return 4;
+        case OP_FAC:
+            return 5;
+    }
+    return 0;
+}
+
+double expr_evaluate(const char* str)
+{
+    Expr e;
+    expr_clear(&e);
+    expr_tokenize(str, &e);
+    expr_print(&e);
+
+    // TODO: Highly illegal. Make a custom data structure instead of using this trash
+    std::stack<Token> ops;
+    std::stack<Token> values;
+
+    for(size_t i = 0; i < e.size; i++)
+    {
+        switch(e.data[i].type)
+        {
+            case TK_BRACKET_OPEN:
+                if(i != 0 && (e.data[i-1].type == TK_N_VALUE || e.data[i-1].type == TK_N_CONST))
                 {
-                    while(ops.size != 0 && prec(expr_top(&ops).c) >= prec('*') && expr_top(&ops).type == TYPE_OPERATOR)
+                    while(!ops.empty() && e.data[i].o <= ops.top().o && ops.top().type == TK_OPERATOR)
                     {
-                        evaluate_op(&values, &ops);
+                        evaluate_op(ops, values);
                     }
-                    expr_append(&ops, {.type = TYPE_OPERATOR, .c = '*'});
+                    ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
                 }
-                else if(i > 1 && e->data[i-1].type == TYPE_BRACKET_CLOSE && (e->data[i-2].type == TYPE_OPERAND_NUMBER || e->data[i-2].type == TYPE_OPERAND_CONSTANT))
+                else if(i > 1 && e.data[i-1].type == TK_BRACKET_CLOSE && (e.data[i-2].type == TK_N_VALUE || e.data[i-2].type == TK_N_CONST))
                 {
-                    while(ops.size != 0 && prec(expr_top(&ops).c) >= prec('*') && expr_top(&ops).type == TYPE_OPERATOR)
+                    while(!ops.empty() && e.data[i].o <= ops.top().o && ops.top().type == TK_OPERATOR)
                     {
-                        evaluate_op(&values, &ops);
+                        evaluate_op(ops, values);
                     }
-                    expr_append(&ops, {.type = TYPE_OPERATOR, .c = '*'});
+                    ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
                 }
-                expr_append(&ops, e->data[i]);
+                ops.push(e.data[i]);
                 break;
-            case TYPE_BRACKET_CLOSE:
-                while(ops.size != 0 && expr_top(&ops).type != TYPE_BRACKET_OPEN)
+            case TK_BRACKET_CLOSE:
+                while(!ops.empty() && ops.top().type != TK_BRACKET_OPEN)
                 {
-                    evaluate_op(&values, &ops);
+                    evaluate_op(ops, values);
                 }
-                if(ops.size != 0)
-                {
-                    expr_backspace(&ops);
-                }
+                if(!ops.empty()) ops.pop();
                 break;
-            case TYPE_OPERAND_NUMBER:
-                if(i != 0 && (e->data[i-1].type == TYPE_BRACKET_CLOSE || e->data[i-1].type == TYPE_OPERAND_CONSTANT))
+
+            case TK_N_VALUE:
+                if(i != 0 && (e.data[i-1].type == TK_BRACKET_CLOSE || e.data[i-1].type == TK_N_CONST))
                 {
-                    while(ops.size != 0 && prec(expr_top(&ops).c) >= prec('*') && expr_top(&ops).type == TYPE_OPERATOR)
+                    while(!ops.empty() && e.data[i].o <= ops.top().o && ops.top().type == TK_OPERATOR)
                     {
-                        evaluate_op(&values, &ops);
+                        evaluate_op(ops, values);
                     }
-                    expr_append(&ops, {.type = TYPE_OPERATOR, .c = '*'});
+                    ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
                 }
-                expr_append(&values, e->data[i]);
+                values.push(e.data[i]);
                 break;
-            case TYPE_OPERAND_CONSTANT:
-                if(i != 0 && (e->data[i-1].type == TYPE_BRACKET_CLOSE || e->data[i-1].type == TYPE_OPERAND_NUMBER || e->data[i-1].type == TYPE_OPERAND_CONSTANT))
+            case TK_N_CONST:
+                if(i != 0 && (e.data[i-1].type == TK_BRACKET_CLOSE || e.data[i-1].type == TK_N_CONST || e.data[i-1].type == TK_N_VALUE))
                 {
-                    while(ops.size != 0 && prec(expr_top(&ops).c) >= prec('*') && expr_top(&ops).type == TYPE_OPERATOR)
+                    while(!ops.empty() && e.data[i].o <= ops.top().o && ops.top().type == TK_OPERATOR)
                     {
-                        evaluate_op(&values, &ops);
+                        evaluate_op(ops, values);
                     }
-                    expr_append(&ops, {.type = TYPE_OPERATOR, .c = '*'});
+                    ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
                 }
-                expr_append(&values, {.type = TYPE_OPERAND_NUMBER, .d = e->data[i].d});
+                values.push(e.data[i]);
                 break;
-            case TYPE_OPERATOR:
-                while(ops.size != 0 && prec(expr_top(&ops).c) >= prec(e->data[i].c))
+
+            case TK_OPERATOR:
+                while(!ops.empty() && ops.top().type != TK_BRACKET_OPEN && precedence(e.data[i].o) < precedence(ops.top().o))
                 {
-                    evaluate_op(&values, &ops);
+                    evaluate_op(ops, values);
                 }
-                expr_append(&ops, e->data[i]);
+                ops.push(e.data[i]);
                 break;
-            case TYPE_AMBIGUOUS:
+
+            default:
                 return NAN;
                 break;
         }
     }
-    while(ops.size != 0 && values.size >= 2)
+
+    if(values.empty()) return NAN;
+    while(!ops.empty() && !values.empty())
     {
-        evaluate_op(&values, &ops);
+        evaluate_op(ops, values);
     }
-    if(ops.size != 0)
-    {
-        return NAN;
-    }
-    return expr_top(&values).d;
+    return values.top().d;
 }
 
-void expr_set(ExprString* s, const char* str)
+void expr_print(Expr* e)
 {
-    expr_clear(s);
-    for(const char* it = str; *it != '\0'; it++)
+    for(size_t i = 0; i < e->size; i++)
     {
-        expr_append(s, *it);
+        token_print(e->data[i]);
     }
+    PRINT("\n");
 }

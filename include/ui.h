@@ -1,8 +1,6 @@
 #pragma once
 
-struct ExprString;
-
-#define FUNC_DEF(name) void cb##name(ExprString* s, size_t button_index)
+#define FUNC_DEF(name) void cb##name(char* str, size_t button_index)
 
 namespace ui
 {
@@ -30,7 +28,7 @@ static const char* BUTTON_STRS[] =
     "1", "2", "3", "-", "?",
     "0", " ", ".", "+", "=",
 };
-static void (* const BUTTON_FUNCS[])(ExprString*, size_t) =
+static void (* const BUTTON_FUNCS[])(char*, size_t) =
 {
     cbbackspace,    0,                      cbclear,    cbaddchar,  cbaddchar,
     cbaddchar,      cbaddchar,  cbaddchar,  cbaddchar,  0,

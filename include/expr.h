@@ -6,6 +6,7 @@ enum TokenType
     TK_UNKNOWN,
     TK_N_VALUE,
     TK_N_CONST,
+    TK_N_VAR,
     TK_BRACKET_OPEN,
     TK_BRACKET_CLOSE,
     TK_OPERATOR
@@ -47,15 +48,16 @@ struct Expr
     size_t size;
 };
 
-struct ExprNode
-{
-    Token data;
-    ExprNode* left;
-    ExprNode* right;
-};
-
 void expr_clear(Expr* e);
 double expr_evaluate(const char* str);
-void expr_print(Expr* e);
+double expr_evaluate_x(const char* str, double x);
 
+#ifdef DEBUG
+void expr_print(Expr* e);
 void expr_tests();
+#else
+#define expr_print(...)
+#define expr_tests(...)
+#endif
+
+bool is_valid_token(char c);

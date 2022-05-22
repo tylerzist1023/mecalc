@@ -15,6 +15,9 @@ FUNC_DEF(clear)
 }
 FUNC_DEF(addchar)
 {
+    if(!is_valid_token(BUTTON_STRS[button_index][0]))
+        return;
+
     if(strlen(str) < EXPR_CAPACITY)
         str[strlen(str)] = BUTTON_STRS[button_index][0];
 }
@@ -58,4 +61,16 @@ FUNC_DEF(right)
 }
 
 };
+
+namespace graph
+{
+void evaluate(char* str, double* x_vals, double* y_vals, size_t vals_count)
+{
+    for(size_t i = 0; i < vals_count; i++)
+    {
+        y_vals[i] = -expr_evaluate_x(str, x_vals[i]);
+    }
+}
+};
+
 };

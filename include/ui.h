@@ -25,7 +25,7 @@ static const char* BUTTON_STRS[] =
     "<-", "?", "C", "(", ")",
     "7", "8", "9", "/", "%",
     "4", "5", "6", "*", "^",
-    "1", "2", "3", "-", "?",
+    "1", "2", "3", "-", "!",
     "0", " ", ".", "+", "=",
 };
 static void (* const BUTTON_FUNCS[])(char*, size_t) =
@@ -33,11 +33,16 @@ static void (* const BUTTON_FUNCS[])(char*, size_t) =
     cbbackspace,    0,                      cbclear,    cbaddchar,  cbaddchar,
     cbaddchar,      cbaddchar,  cbaddchar,  cbaddchar,  0,
     cbaddchar,      cbaddchar,  cbaddchar,  cbaddchar,  cbaddchar,
-    cbaddchar,      cbaddchar,  cbaddchar,  cbaddchar,  0,
+    cbaddchar,      cbaddchar,  cbaddchar,  cbaddchar,  cbaddchar,
     cbaddchar,      0,                      cbaddchar,  cbaddchar,  cbevaluate,
 };
 const size_t BUTTONS_SIZE = sizeof(BUTTON_STRS)/sizeof(BUTTON_STRS[0]);
 const int BUTTONS_PER_ROW = 5;
 
+};
+
+namespace graph
+{
+void evaluate(char* str, double* x_vals, double* y_vals, size_t vals_count);
 };
 };

@@ -39,15 +39,12 @@ static bool mode_normal()
         {
             switch(key)
             {
-                case 'c':
+                case 'C':
                     ui::normal::cbclear(expr_str, 0);
                     break;
                 default:
-                    if(is_valid_token(key))
-                    {
-                        if(strlen(expr_str) < EXPR_CAPACITY)
-                            expr_str[strlen(expr_str)] = key;
-                    }
+                    if(strlen(expr_str) < EXPR_CAPACITY)
+                        expr_str[strlen(expr_str)] = key;
                     break;
             }
         }
@@ -92,11 +89,6 @@ static bool mode_normal()
             GuiTextBox({2,2,(float)SW-2, 64}, expr_str, 20, false);
         }
         EndDrawing();
-
-        if(IsKeyPressed(KEY_C))
-        {
-            ui::normal::cbclear(expr_str, 0);
-        }
     }
     return true;
 }
@@ -207,15 +199,12 @@ static bool mode_graph()
         {
             switch(key)
             {
-                case 'c':
+                case 'C':
                     ui::normal::cbclear(expr_str, 0);
                     break;
                 default:
-                    if(is_valid_token(key))
-                    {
-                        if(strlen(expr_str) < EXPR_CAPACITY)
-                            expr_str[strlen(expr_str)] = key;
-                    }
+                    if(strlen(expr_str) < EXPR_CAPACITY)
+                        expr_str[strlen(expr_str)] = key;
                     break;
             }
         }

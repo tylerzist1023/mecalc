@@ -15,9 +15,6 @@ FUNC_DEF(clear)
 }
 FUNC_DEF(addchar)
 {
-    if(!is_valid_token(BUTTON_STRS[button_index][0]))
-        return;
-
     if(strlen(str) < EXPR_CAPACITY)
         str[strlen(str)] = BUTTON_STRS[button_index][0];
 }
@@ -27,9 +24,6 @@ FUNC_DEF(evaluate)
 
     if(result == result)
     {
-        // char buf[EXPR_CAPACITY];
-        // memset(buf, 0, EXPR_CAPACITY);
-
         memset(str, 0, EXPR_CAPACITY);
         snprintf(str, EXPR_CAPACITY, "%G", result);
 

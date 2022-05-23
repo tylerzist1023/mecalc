@@ -5,7 +5,6 @@ enum TokenType
 {
     TK_UNKNOWN,
     TK_N_VALUE,
-    TK_N_CONST,
     TK_N_VAR,
     TK_BRACKET_OPEN,
     TK_BRACKET_CLOSE,
@@ -16,17 +15,32 @@ enum OperatorType
 {
     /* binary operators */
     OP_ADD = 0,
-    OP_SUB = 1,
-    OP_MUL = 2,
-    OP_DIV = 3,
-    OP_POW = 4,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_POW,
 
-    /* unary operators */
-    OP_POS = 5,
-    OP_NEG = 6,
-    OP_FAC = 7,
+    /* prefix unary operators */
+    OP_POS,
+    OP_NEG,
+    OP_LN,
+    OP_LOG10,
+    OP_ARCSIN,
+    OP_ARCCOS,
+    OP_ARCTAN,
+    OP_SINH,
+    OP_COSH,
+    OP_TANH,
+    OP_SIN,
+    OP_COS,
+    OP_TAN,
 
-    OP_NUL
+    /* postfix unary operators */
+    OP_FAC,
+
+    OP_NUL,
+
+    OP_SIZE
 };
 
 struct Token

@@ -4,13 +4,48 @@
 #include <stdlib.h>
 #include <stack>
 
-// TODO: multi-character operators
-/*
-    log
-    ln
-    trig, arctrig, trigh,
-    pi
-*/
+enum OperatorOrg
+{
+    ORG_POST,
+    ORG_IN,
+    ORG_PRE
+};
+
+struct Operator
+{
+    OperatorType o;
+    const char* str;
+    int arg_count;
+    int precedence;
+    OperatorOrg org;
+    double (*func)(double, double);
+} OPS[] = 
+{
+    {OP_ADD,    "+",        2, 1, ORG_IN,       [](double lhs, double rhs) -> double {return lhs+rhs;} },
+    {OP_SUB,    "-",        2, 1, ORG_IN,       [](double lhs, double rhs) -> double {return lhs-rhs;} },
+    {OP_MUL,    "*",        2, 2, ORG_IN,       [](double lhs, double rhs) -> double {return lhs*rhs;} },
+    {OP_DIV,    "/",        2, 2, ORG_IN,       [](double lhs, double rhs) -> double {if(rhs == 0) return NAN; else return lhs/rhs;} },
+    {OP_POW,    "^",        2, 3, ORG_IN,       [](double lhs, double rhs) -> double {return pow(lhs,rhs);} },
+
+    {OP_POS,    "+",        1, 4, ORG_PRE,      [](double x, double _) -> double {return x;} },
+    {OP_NEG,    "-",        1, 4, ORG_PRE,      [](double x, double _) -> double {return -x;} },
+    {OP_LN,     "ln",       1, 4, ORG_PRE,      [](double x, double _) -> double {return log(x);} },
+    {OP_LOG10,  "log",      1, 4, ORG_PRE,      [](double x, double _) -> double {return log10(x);} },
+    {OP_ARCSIN, "asin",     1, 4, ORG_PRE,      [](double x, double _) -> double {return asin(x);} },
+    {OP_ARCCOS, "acos",     1, 4, ORG_PRE,      [](double x, double _) -> double {return acos(x);} },
+    {OP_ARCTAN, "atan",     1, 4, ORG_PRE,      [](double x, double _) -> double {return atan(x);} },
+    {OP_SINH,   "sinh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return sinh(x);} },
+    {OP_COSH,   "cosh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return cosh(x);} },
+    {OP_TANH,   "tanh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return tanh(x);} },
+    {OP_SIN,    "sin",      1, 4, ORG_PRE,      [](double x, double _) -> double {return sin(x);} },
+    {OP_COS,    "cos",      1, 4, ORG_PRE,      [](double x, double _) -> double {return cos(x);} },
+    {OP_TAN,    "tan",      1, 4, ORG_PRE,      [](double x, double _) -> double {return tan(x);} },
+
+    {OP_FAC,    "!",        1, 6, ORG_POST,     [](double x, double _) -> double {return tgamma(x+1);} },
+
+    {OP_NUL,    "",         0, 0, ORG_IN, 0},
+};
+
 // TODO: Get rid of the const tokens in the expr after tokenization. Proving more work managing them than need be
 
 #ifdef DEBUG
@@ -19,7 +54,6 @@ static void token_print(Token t)
     switch(t.type)
     {
         case TK_N_VALUE:
-        case TK_N_CONST:
             PRINT("[%lf] ", t.d);
             break;
         default:
@@ -79,10 +113,12 @@ void expr_tests()
     expr_test("(-2)6", -12);
     expr_test("e^2+1e", 10.10734);
     expr_test("4^2(e)", 43.4925092553);
+    expr_test("4^2e", 43.4925092553); // TODO: Need to think about this.
     expr_test("4^(2)(e)", 43.4925092553);
     expr_test("4^(2)e", 43.4925092553);
     expr_test("4^(e)2", 86.6161208536);
     expr_test("e^2-1ee", 0);
+    expr_test("-lne", -1);
 
     // TODO: This does not work as intended. I would prefer to have this since this I type operations like this on my TI-84.
     // A hacky solution would be to do the classic check if the brackets are balanced, then just add the missing bracket tokens at the end of the Expr
@@ -94,7 +130,10 @@ void expr_tests()
     expr_test("--1", 1);
     expr_test("-+1", -1);
     expr_test("+-1", -1);
-
+    expr_test("ln(1)", 0);
+    expr_test("ln(e)", 1);
+    expr_test("2ln(e)", 2);
+    expr_test("sinh(0)", 0);
 
     /* old tests */
     expr_test("2+2", 4.0);
@@ -142,39 +181,6 @@ void expr_tests()
 }
 #endif
 
-bool is_valid_token(char c)
-{
-    switch(c)
-    {
-        case '(':
-        case ')':
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-        case '.':
-        case 'E':
-        case '+':
-        case '-':
-        case '*':
-        case '/':
-        case '^':
-        case '!':
-        case 'e':
-        case 'p':
-        case 'x':
-            return true;
-        default:
-            return false;
-    }
-}
-
 static inline bool isdigit(char c)
 {
     return c >= '0' && c <= '9' || c == '.' || c == 'E';
@@ -191,13 +197,43 @@ static inline Token token_default()
 {
     return {.type = TK_UNKNOWN, .c = '\0', .i = 0};
 }
-static inline double factorial(double x)
+
+static OperatorType scan_operator(const char* str, const char** next, bool unary_prefix, bool unary_postfix)
 {
-    return tgamma(x+1);
-}
-static inline double negate(double x)
-{
-    return -x;
+    OperatorType o = OP_NUL;
+    for(size_t i = 0; i < OP_SIZE; i++)
+    {
+        const char* _next = str;
+        if(unary_prefix && OPS[i].org != ORG_PRE)
+        {
+            continue;
+        }
+        else if(!unary_postfix && OPS[i].org == ORG_POST)
+        {
+            continue;
+        }
+        // else if(!unary_prefix /*&& !unary_postfix*/ && OPS[i].org != ORG_IN)
+        // {
+        //     continue;
+        // }
+
+        if(*str == OPS[i].str[0])
+        {
+            while(OPS[i].str[_next - str] != '\0' && *_next == OPS[i].str[_next - str])
+            {
+                _next++;
+            }
+            if(OPS[i].str[_next - str] == '\0')
+            {
+                if(next)
+                {
+                    *next = _next;
+                }
+                return OPS[i].o;
+            }
+        }
+    }
+    return OP_NUL;
 }
 
 static Token scan_token(const char* str, const char** next, 
@@ -212,14 +248,13 @@ static Token scan_token(const char* str, const char** next,
             switch(*str)
             {
                 case 'e':
-                    t.type = TK_N_CONST;
                     t.d = M_E;
                     break;
                 case 'p':
-                    t.type = TK_N_CONST;
                     t.d = M_PI;
                     break;
             }
+            t.type = TK_N_VALUE;
             _next++;
         }
         else if(isdigit(*str))
@@ -244,58 +279,30 @@ static Token scan_token(const char* str, const char** next,
             case '(':
                 t.type = TK_BRACKET_OPEN;
                 *unary_prefix = true;
+                _next++;
                 break;
             case ')':
                 t.type = TK_BRACKET_CLOSE;
-                break;
-
-            case '+':
-                t.type = TK_OPERATOR;
-                if(*unary_prefix) //TODO: broken
-                {
-                    t.o = OP_POS;
-                    break;
-                }
-                t.o = OP_ADD;
-                *unary_prefix = true;
-                break;
-            case '-':
-                t.type = TK_OPERATOR;
-                if(*unary_prefix)
-                {
-                    t.o = OP_NEG;
-                    break;
-                }
-                t.o = OP_SUB;
-                *unary_prefix = true;
-                break;
-            case '*':
-                t.type = TK_OPERATOR;
-                t.o = OP_MUL;
-                *unary_prefix = true;
-                break;
-            case '/':
-                t.type = TK_OPERATOR;
-                t.o = OP_DIV;
-                *unary_prefix = true;
-                break;
-            case '^':
-                t.type = TK_OPERATOR;
-                t.o = OP_POW;
-                *unary_prefix = true;
-                break;
-
-            case '!':
-                t.type = TK_OPERATOR;
-                t.o = OP_FAC;
+                _next++;
                 break;
 
             default:
-                t.type = TK_UNKNOWN;
-                // TODO: multi-width token parsing
+                t.o = scan_operator(str, &_next, *unary_prefix, *unary_postfix);
+                if(t.o != OP_NUL)
+                {
+                    t.type = TK_OPERATOR;
+                    if(t.o != OP_FAC)
+                    {
+                        *unary_prefix = true;
+                    }
+                }
+                else
+                {
+                    t.type = TK_UNKNOWN;
+                    _next++;
+                }
                 break;
         }
-        _next++;
 
         *unary_postfix = false;
     }
@@ -327,25 +334,6 @@ void expr_clear(Expr* e)
     }
 }
 
-static inline int get_arg_count(OperatorType o)
-{
-    switch(o)
-    {
-        case OP_ADD:
-        case OP_SUB:
-        case OP_MUL:
-        case OP_DIV:
-        case OP_POW:
-            return 2;
-        case OP_POS:
-        case OP_NEG:
-        case OP_FAC:
-            return 1;
-        default:
-            return 1;
-    }
-}
-
 static void evaluate_op(std::stack<Token>& ops, std::stack<Token>& values)
 {
     if(values.empty() || ops.empty())
@@ -361,25 +349,13 @@ static void evaluate_op(std::stack<Token>& ops, std::stack<Token>& values)
     //     return;
     // }
 
-    int arg_count = get_arg_count(ops.top().o);
+    int arg_count = OPS[ops.top().o].arg_count;
     if(arg_count == 1)
     {
         Token val1 = values.top(); values.pop();
 
-        switch(ops.top().o)
-        {
-            case OP_POS:
-                break;
-            case OP_NEG:
-                PRINT("Negated %lf\n", val1.d);
-                val1.d = -val1.d;
-                break;
-            case OP_FAC:
-                val1.d = (double)factorial(val1.d);
-                break;
-            default:
-                break;
-        }
+        val1.d = OPS[ops.top().o].func(val1.d, 0);
+        
         values.push(val1);
     }
     else if(arg_count == 2)
@@ -396,57 +372,11 @@ static void evaluate_op(std::stack<Token>& ops, std::stack<Token>& values)
 
         Token val1 = values.top(); values.pop();
 
-        double result = 0.0;
+        double result = OPS[ops.top().o].func(val1.d, val2.d);
 
-        switch(ops.top().o)
-        {
-            case OP_ADD:
-                result = val1.d + val2.d;
-                break;
-            case OP_SUB:
-                result = val1.d - val2.d;
-                break;
-            case OP_MUL:
-                result = val1.d * val2.d;
-                break;
-            case OP_DIV:
-                if(val2.d == 0)
-                    result = NAN;
-                else
-                    result = val1.d / val2.d;
-                break;
-            case OP_POW:
-                result = pow(val1.d, val2.d);
-                break;
-            default:
-                break;
-        }
         values.push({.type = TK_N_VALUE, .d = result});
     }
     ops.pop();
-}
-
-static inline int precedence(OperatorType o)
-{
-    switch(o)
-    {
-        case OP_ADD:
-        case OP_SUB:
-            return 1;
-        case OP_MUL:
-        case OP_DIV:
-            return 2;
-        case OP_POW:
-            return 3;
-        case OP_POS:
-        case OP_NEG:
-            return 4;
-        case OP_FAC:
-            return 5;
-        default:
-            return 0;
-    }
-    return 0;
 }
 
 // TODO: still some bugs
@@ -461,17 +391,17 @@ static double expr_evaluate(Expr* e)
         switch(e->data[i].type)
         {
             case TK_BRACKET_OPEN:
-                if(i != 0 && (e->data[i-1].type == TK_N_VALUE || e->data[i-1].type == TK_N_CONST))
+                if(i != 0 && (e->data[i-1].type == TK_N_VALUE))
                 {
-                    while(!ops.empty() && precedence(OP_MUL) < precedence(ops.top().o) && ops.top().type == TK_OPERATOR)
+                    while(!ops.empty() && OPS[OP_MUL].precedence < OPS[ops.top().o].precedence && ops.top().type == TK_OPERATOR)
                     {
                         evaluate_op(ops, values);
                     }
                     ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
                 }
-                else if(i > 1 && e->data[i-1].type == TK_BRACKET_CLOSE && (e->data[i-2].type == TK_N_VALUE || e->data[i-2].type == TK_N_CONST))
+                else if(i > 1 && e->data[i-1].type == TK_BRACKET_CLOSE && e->data[i-2].type == TK_N_VALUE)
                 {
-                    while(!ops.empty() && precedence(OP_MUL) < precedence(ops.top().o) && ops.top().type == TK_OPERATOR)
+                    while(!ops.empty() && OPS[OP_MUL].precedence < OPS[ops.top().o].precedence && ops.top().type == TK_OPERATOR)
                     {
                         evaluate_op(ops, values);
                     }
@@ -488,14 +418,14 @@ static double expr_evaluate(Expr* e)
                 break;
 
             case TK_N_VALUE:
-                if(i != 0 && (e->data[i-1].type == TK_BRACKET_CLOSE || e->data[i-1].type == TK_N_CONST))
+                if(i != 0 && (e->data[i-1].type == TK_BRACKET_CLOSE || e->data[i-1].type == TK_N_VALUE))
                 {
-                    if(e->data[i-1].type == TK_N_CONST)
+                    if(e->data[i-1].type == TK_N_VALUE)
                     {
                         values.push(e->data[i]);
                         ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
                     }
-                    while(!ops.empty() && precedence(OP_MUL) < precedence(ops.top().o) && ops.top().type == TK_OPERATOR)
+                    while(!ops.empty() && OPS[OP_MUL].precedence < OPS[ops.top().o].precedence && ops.top().type == TK_OPERATOR)
                     {
                         evaluate_op(ops, values);
                     }
@@ -510,32 +440,12 @@ static double expr_evaluate(Expr* e)
                     values.push(e->data[i]);
                 }
                 break;
-            case TK_N_CONST:
-                if(i != 0 && (e->data[i-1].type == TK_BRACKET_CLOSE || e->data[i-1].type == TK_N_CONST || e->data[i-1].type == TK_N_VALUE))
-                {
-                    if(e->data[i-1].type == TK_N_CONST || e->data[i-1].type == TK_N_VALUE)
-                    {
-                        values.push(e->data[i]);
-                        ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
-                    }
-                    while(!ops.empty() && precedence(OP_MUL) < precedence(ops.top().o) && ops.top().type == TK_OPERATOR)
-                    {
-                        evaluate_op(ops, values);
-                    }
-                    if(e->data[i-1].type == TK_BRACKET_CLOSE) 
-                    {
-                        values.push(e->data[i]);
-                        ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
-                    }
-                }
-                else
-                {
-                    values.push(e->data[i]);
-                }
-                break;
-
             case TK_OPERATOR:
-                while(!ops.empty() && ops.top().type != TK_BRACKET_OPEN && precedence(e->data[i].o) < precedence(ops.top().o))
+                if(i != 0 && e->data[i-1].type == TK_N_VALUE && OPS[e->data[i].o].org == ORG_PRE)
+                {
+                    ops.push({.type = TK_OPERATOR, .c = '*', .o = OP_MUL});
+                }
+                while(!ops.empty() && ops.top().type != TK_BRACKET_OPEN && OPS[e->data[i].o].precedence < OPS[ops.top().o].precedence)
                 {
                     evaluate_op(ops, values);
                 }
@@ -568,7 +478,7 @@ double expr_evaluate_x(const char *str, double x)
     {
         if(e.data[i].type == TK_N_VAR && e.data[i].c == 'x')
         {
-            e.data[i].type = TK_N_CONST;
+            e.data[i].type = TK_N_VALUE;
             e.data[i].d = x;
         }
     }

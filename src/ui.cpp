@@ -62,7 +62,7 @@ void evaluate(char* str, double* x_vals, double* y_vals, size_t vals_count)
 {
     for(size_t i = 0; i < vals_count; i++)
     {
-        y_vals[i] = -expr_evaluate_x(str, x_vals[i]);
+        y_vals[i] = expr_evaluate_x(str, x_vals[i]);
     }
 }
 };

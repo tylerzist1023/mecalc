@@ -13,7 +13,6 @@ enum OperatorOrg
 
 struct Operator
 {
-    OperatorType o;
     const char* str;
     int arg_count;
     int precedence;
@@ -21,32 +20,29 @@ struct Operator
     double (*func)(double, double);
 } OPS[] = 
 {
-    {OP_ADD,    "+",        2, 1, ORG_IN,       [](double lhs, double rhs) -> double {return lhs+rhs;} },
-    {OP_SUB,    "-",        2, 1, ORG_IN,       [](double lhs, double rhs) -> double {return lhs-rhs;} },
-    {OP_MUL,    "*",        2, 2, ORG_IN,       [](double lhs, double rhs) -> double {return lhs*rhs;} },
-    {OP_DIV,    "/",        2, 2, ORG_IN,       [](double lhs, double rhs) -> double {if(rhs == 0) return NAN; else return lhs/rhs;} },
-    {OP_POW,    "^",        2, 3, ORG_IN,       [](double lhs, double rhs) -> double {return pow(lhs,rhs);} },
-
-    {OP_POS,    "+",        1, 4, ORG_PRE,      [](double x, double _) -> double {return x;} },
-    {OP_NEG,    "-",        1, 4, ORG_PRE,      [](double x, double _) -> double {return -x;} },
-    {OP_LN,     "ln",       1, 4, ORG_PRE,      [](double x, double _) -> double {return log(x);} },
-    {OP_LOG10,  "log",      1, 4, ORG_PRE,      [](double x, double _) -> double {return log10(x);} },
-    {OP_ARCSIN, "asin",     1, 4, ORG_PRE,      [](double x, double _) -> double {return asin(x);} },
-    {OP_ARCCOS, "acos",     1, 4, ORG_PRE,      [](double x, double _) -> double {return acos(x);} },
-    {OP_ARCTAN, "atan",     1, 4, ORG_PRE,      [](double x, double _) -> double {return atan(x);} },
-    {OP_SINH,   "sinh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return sinh(x);} },
-    {OP_COSH,   "cosh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return cosh(x);} },
-    {OP_TANH,   "tanh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return tanh(x);} },
-    {OP_SIN,    "sin",      1, 4, ORG_PRE,      [](double x, double _) -> double {return sin(x);} },
-    {OP_COS,    "cos",      1, 4, ORG_PRE,      [](double x, double _) -> double {return cos(x);} },
-    {OP_TAN,    "tan",      1, 4, ORG_PRE,      [](double x, double _) -> double {return tan(x);} },
-
-    {OP_FAC,    "!",        1, 6, ORG_POST,     [](double x, double _) -> double {return tgamma(x+1);} },
-
-    {OP_NUL,    "",         0, 0, ORG_IN, 0},
+    {/* OP_ADD */       "+",        2, 1, ORG_IN,       [](double lhs, double rhs) -> double {return lhs+rhs;} },
+    {/* OP_SUB */       "-",        2, 1, ORG_IN,       [](double lhs, double rhs) -> double {return lhs-rhs;} },
+    {/* OP_MUL */       "*",        2, 2, ORG_IN,       [](double lhs, double rhs) -> double {return lhs*rhs;} },
+    {/* OP_DIV */       "/",        2, 2, ORG_IN,       [](double lhs, double rhs) -> double {if(rhs == 0) return NAN; else return lhs/rhs;} },
+    {/* OP_POW */       "^",        2, 3, ORG_IN,       [](double lhs, double rhs) -> double {return pow(lhs,rhs);} },     
+    {/* OP_POS */       "+",        1, 4, ORG_PRE,      [](double x, double _) -> double {return x;} },
+    {/* OP_NEG */       "-",        1, 4, ORG_PRE,      [](double x, double _) -> double {return -x;} },
+    {/* OP_LN */        "ln",       1, 4, ORG_PRE,      [](double x, double _) -> double {return log(x);} },
+    {/* OP_LOG10 */     "log",      1, 4, ORG_PRE,      [](double x, double _) -> double {return log10(x);} },
+    {/* OP_ARCSIN */    "asin",     1, 4, ORG_PRE,      [](double x, double _) -> double {return asin(x);} },
+    {/* OP_ARCCOS */    "acos",     1, 4, ORG_PRE,      [](double x, double _) -> double {return acos(x);} },
+    {/* OP_ARCTAN */    "atan",     1, 4, ORG_PRE,      [](double x, double _) -> double {return atan(x);} },
+    {/* OP_SINH */      "sinh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return sinh(x);} },
+    {/* OP_COSH */      "cosh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return cosh(x);} },
+    {/* OP_TANH */      "tanh",     1, 4, ORG_PRE,      [](double x, double _) -> double {return tanh(x);} },
+    {/* OP_SIN */       "sin",      1, 4, ORG_PRE,      [](double x, double _) -> double {return sin(x);} },
+    {/* OP_COS */       "cos",      1, 4, ORG_PRE,      [](double x, double _) -> double {return cos(x);} },
+    {/* OP_TAN */       "tan",      1, 4, ORG_PRE,      [](double x, double _) -> double {return tan(x);} },
+    {/* OP_ABS */       "abs",      1, 4, ORG_PRE,      [](double x, double _) -> double {return abs(x);} },
+    {/* OP_SQRT */      "sqrt",     1, 4, ORG_PRE,      [](double x, double _) -> double {return sqrt(x);} },
+    {/* OP_FAC */       "!",        1, 5, ORG_POST,     [](double x, double _) -> double {return tgamma(x+1);} },
+    {/* OP_NUL */       "",         0, 0, ORG_IN,       0},
 };
-
-// TODO: Get rid of the const tokens in the expr after tokenization. Proving more work managing them than need be
 
 #ifdef DEBUG
 static void token_print(Token t)
@@ -198,24 +194,20 @@ static inline Token token_default()
     return {.type = TK_UNKNOWN, .c = '\0', .i = 0};
 }
 
-static OperatorType scan_operator(const char* str, const char** next, bool unary_prefix, bool unary_postfix)
+static OperatorType scan_operator(const char* str, const char** next, OperatorOrg possible_org)
 {
     OperatorType o = OP_NUL;
     for(size_t i = 0; i < OP_SIZE; i++)
     {
         const char* _next = str;
-        if(unary_prefix && OPS[i].org != ORG_PRE)
+        if(possible_org == ORG_PRE && OPS[i].org != ORG_PRE)
         {
             continue;
         }
-        else if(!unary_postfix && OPS[i].org == ORG_POST)
+        else if(possible_org != ORG_POST && OPS[i].org == ORG_POST)
         {
             continue;
         }
-        // else if(!unary_prefix /*&& !unary_postfix*/ && OPS[i].org != ORG_IN)
-        // {
-        //     continue;
-        // }
 
         if(*str == OPS[i].str[0])
         {
@@ -229,98 +221,85 @@ static OperatorType scan_operator(const char* str, const char** next, bool unary
                 {
                     *next = _next;
                 }
-                return OPS[i].o;
+                return (OperatorType)i;
             }
         }
     }
     return OP_NUL;
 }
 
-static Token scan_token(const char* str, const char** next, 
-    bool* unary_prefix, bool* unary_postfix)
-{
-    Token t = token_default();
-    const char* _next = str;
-    if(isdigit(*str) || isconstant(*str) || isvariable(*str))
-    {
-        if(isconstant(*str))
-        {
-            switch(*str)
-            {
-                case 'e':
-                    t.d = M_E;
-                    break;
-                case 'p':
-                    t.d = M_PI;
-                    break;
-            }
-            t.type = TK_N_VALUE;
-            _next++;
-        }
-        else if(isdigit(*str))
-        {
-            t.type = TK_N_VALUE;
-            t.d = strtod(str, (char**)&_next);
-        }
-        else if(isvariable(*str))
-        {
-            t.type = TK_N_VAR;
-            t.c = *str;
-            _next++;
-        }
-        *unary_postfix = true;
-        *unary_prefix = false;
-    }
-    else 
-    {
-        t.c = *str;
-        switch(*str)
-        {
-            case '(':
-                t.type = TK_BRACKET_OPEN;
-                *unary_prefix = true;
-                _next++;
-                break;
-            case ')':
-                t.type = TK_BRACKET_CLOSE;
-                _next++;
-                break;
-
-            default:
-                t.o = scan_operator(str, &_next, *unary_prefix, *unary_postfix);
-                if(t.o != OP_NUL)
-                {
-                    t.type = TK_OPERATOR;
-                    if(t.o != OP_FAC)
-                    {
-                        *unary_prefix = true;
-                    }
-                }
-                else
-                {
-                    t.type = TK_UNKNOWN;
-                    _next++;
-                }
-                break;
-        }
-
-        *unary_postfix = false;
-    }
-
-    if(next) *next = _next;
-    return t;
-}
-
 static void expr_tokenize(const char* str, Expr* e)
 {
-    bool unary_prefix = true;
-    bool unary_postfix = false;
+    OperatorOrg possible_org = ORG_PRE;
+
     for(const char* c = str; (*c != '\0') && (e->size < EXPR_CAPACITY);)
     {
-        const char* next;
-        Token t = scan_token(c, &next, &unary_prefix, &unary_postfix);
-        c = next;
+        const char* next = c;
+        Token t = token_default();
+        if(isdigit(*c) || isconstant(*c) || isvariable(*c))
+        {
+            if(isconstant(*c))
+            {
+                switch(*c)
+                {
+                    case 'e':
+                        t.d = M_E;
+                        break;
+                    case 'p':
+                        t.d = M_PI;
+                        break;
+                }
+                t.type = TK_N_VALUE;
+                next++;
+            }
+            else if(isdigit(*c))
+            {
+                t.type = TK_N_VALUE;
+                t.d = strtod(c, (char**)&next);
+            }
+            else if(isvariable(*c))
+            {
+                t.type = TK_N_VAR;
+                t.c = *c;
+                next++;
+            }
+            possible_org = ORG_POST;
+        }
+        else 
+        {
+            t.c = *c;
+            switch(*c)
+            {
+                case '(':
+                    t.type = TK_BRACKET_OPEN;
+                    possible_org = ORG_PRE;
+                    next++;
+                    break;
+                case ')':
+                    t.type = TK_BRACKET_CLOSE;
+                    next++;
+                    break;
 
+                default:
+                    t.o = scan_operator(c, &next, possible_org);
+                    if(t.o != OP_NUL)
+                    {
+                        t.type = TK_OPERATOR;
+                        if(OPS[t.o].org != ORG_POST)
+                        {
+                            possible_org = ORG_PRE;
+                        }
+                    }
+                    else
+                    {
+                        t.type = TK_UNKNOWN;
+                        next++;
+                    }
+                    break;
+            }
+        }
+
+        c = next;
         e->data[e->size++] = t;
     }
 }

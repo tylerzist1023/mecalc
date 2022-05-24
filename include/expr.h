@@ -34,6 +34,8 @@ enum OperatorType
     OP_SIN,
     OP_COS,
     OP_TAN,
+    OP_ABS,
+    OP_SQRT,
 
     /* postfix unary operators */
     OP_FAC,

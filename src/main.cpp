@@ -122,7 +122,7 @@ bool operator!=(ScreenBounds lhs, ScreenBounds rhs)
 }
 
 // TODO: create functions for x and y components separately
-static GraphCoord screen_to_graph(ScreenBounds sb, GraphBounds gb, ScreenCoord sc)
+static inline GraphCoord screen_to_graph(ScreenBounds sb, GraphBounds gb, ScreenCoord sc)
 {
     int sw = (sb.x2 - sb.x1);
     int sx = (sc.x - sb.x1);
@@ -138,7 +138,7 @@ static GraphCoord screen_to_graph(ScreenBounds sb, GraphBounds gb, ScreenCoord s
 
     return {gx + gb.x1, gy + gb.y1};
 }
-static ScreenCoord graph_to_screen(ScreenBounds sb, GraphBounds gb, GraphCoord gc)
+static inline ScreenCoord graph_to_screen(ScreenBounds sb, GraphBounds gb, GraphCoord gc)
 {
     double gw = (gb.x2 - gb.x1);
     double gx = (gc.x - gb.x1);
@@ -154,11 +154,21 @@ static ScreenCoord graph_to_screen(ScreenBounds sb, GraphBounds gb, GraphCoord g
 
     return {sx + sb.x1, sy + sb.y1};
 }
-static bool screen_contains(ScreenBounds sb, ScreenCoord sc)
+static inline bool screen_contains(ScreenBounds sb, ScreenCoord sc)
 {
     bool contains_x = sc.x >= sb.x1 && sc.x <= sb.x2;
     bool contains_y = sc.y >= sb.y1 && sc.y <= sb.y2;
     return contains_x && contains_y;
+}
+static inline int clamp(int min, int x, int max)
+{
+    assert(max >= min);
+
+    if(x <= min)
+        return min;
+    else if(x >= max)
+        return max;
+    return x;
 }
 
 static bool mode_graph()
@@ -174,6 +184,7 @@ static bool mode_graph()
     for(size_t i = 0; i < sb.x2 - sb.x1; i++)
     {
         x_vals[i] = screen_to_graph(sb, gb, {(int)i+sb.x1, 0}).x;
+        y_vals[i] = NAN;
     }
 
     while(mode == ui::MODE_GRAPH)
@@ -190,6 +201,7 @@ static bool mode_graph()
             for(size_t i = 0; i < sb.x2 - sb.x1; i++)
             {
                 x_vals[i] = screen_to_graph(sb, gb, {(int)i+sb.x1, 0}).x;
+                y_vals[i] = NAN;
             }
             ui::graph::evaluate(expr_str, x_vals, y_vals, (sb.x2 - sb.x1));
         }
@@ -235,12 +247,40 @@ static bool mode_graph()
 
             GuiTextBox({2,2,(float)SW-2, 64}, expr_str, 20, false);
 
+            ScreenCoord mouse = {(int)GetMousePosition().x, (int)GetMousePosition().y};
+            if(screen_contains(sb, mouse))
+            {
+                GraphCoord mouse_graph = screen_to_graph(sb, gb, mouse);
+                ScreenCoord sc = graph_to_screen(sb, gb, {0, -y_vals[mouse.x-sb.x1]});
+
+                char buf[32];
+                snprintf(buf, 32, "(%G, %G)", mouse_graph.x, y_vals[mouse.x-sb.x1]);
+
+                DrawText(buf, mouse.x, sc.y, 20, RAYWHITE);
+            }
+
+            ScreenCoord top = graph_to_screen(sb, gb, {0, gb.y1});
+            ScreenCoord bottom = graph_to_screen(sb, gb, {0, gb.y2});
+            ScreenCoord left = graph_to_screen(sb, gb, {gb.x1, 0});
+            ScreenCoord right = graph_to_screen(sb, gb, {gb.x2, 0});
+
+            DrawLine(top.x, top.y, bottom.x, bottom.y, GRAY);
+            DrawLine(left.x, left.y, right.x, right.y, GRAY);
+
+            ScreenCoord sc_last;
             for(int i = sb.x1; i < sb.x2; i++)
             {   
-                ScreenCoord sc = graph_to_screen(sb, gb, {0, y_vals[i-sb.x1]});
+                ScreenCoord sc = graph_to_screen(sb, gb, {0, -y_vals[i-sb.x1]});
 
-                if(screen_contains(sb, sc))
-                    DrawCircle(i, sc.y , 1.f, RAYWHITE);
+                if(i != 0 && y_vals[i-sb.x1] == y_vals[i-sb.x1] && y_vals[i-sb.x1-1] == y_vals[i-sb.x1-1]
+                    && (screen_contains(sb, sc) || screen_contains(sb, sc_last)))
+                {
+                    DrawLine(i, clamp(sb.y1, sc.y, sb.y2), i-1, clamp(sb.y1, sc_last.y, sb.y2), RAYWHITE);
+                }
+                //if(screen_contains(sb, sc))
+                    //DrawPixel(i, sc.y, RAYWHITE);
+
+                sc_last = sc;
             }
         }
         EndDrawing();

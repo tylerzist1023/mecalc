@@ -1,4 +1,5 @@
 #include "expr.h"
+#include <stdint.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <stdlib.h>
@@ -17,7 +18,11 @@ struct Operator
     int arg_count;
     int precedence;
     OperatorOrg org;
-    double (*func)(double, double);
+    union
+    {
+    double (*func_d)(double, double);
+    int64_t (*func_i)(int64_t, int64_t);
+    };
 } OPS[] = 
 {
     {/* OP_ADD */       "+",        2, 1, ORG_IN,       [](double lhs, double rhs) -> double {return lhs+rhs;} },
@@ -44,6 +49,31 @@ struct Operator
     {/* OP_NUL */       "",         0, 0, ORG_IN,       0},
 };
 
+Operator OPS_PROGRAMMER[] =
+{
+    {/* OP_PROG_ADD */       "+",        2, 5, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs+rhs;} },
+    {/* OP_PROG_SUB */       "-",        2, 5, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs-rhs;} },
+    {/* OP_PROG_MUL */       "*",        2, 6, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs*rhs;} },
+    {/* OP_PROG_DIV */       "/",        2, 6, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs/rhs;} },
+    {/* OP_PROG_MOD */       "%",        2, 6, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs%rhs;} },
+    
+    {/* OP_PROG_AND */       "&",        2, 3, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs&rhs;} },
+    {/* OP_PROG_OR */        "|",        2, 1, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs|rhs;} },
+    {/* OP_PROG_XOR */       "^",        2, 2, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs^rhs;} },
+    {/* OP_PROG_LSH */       "<<",       2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs<<rhs;} },
+    {/* OP_PROG_RSH */       ">>",       2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs>>rhs;} },
+    {/* OP_PROG_ROL */       "rol",      2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return _rotl64(lhs, rhs);} },
+    {/* OP_PROG_ROR */       "ror",      2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return _rotr64(lhs, rhs);} },
+
+    {/* OP_PROG_POS */       "+",        1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return x;} },
+    {/* OP_PROG_NEG */       "-",        1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return -x;} },
+    {/* OP_PROG_ABS */       "abs",      1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return abs(x);} },
+    
+    {/* OP_PROG_NOT */       "~",        1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return ~x;} },
+
+    {/* OP_PROG_NUL */       "",         0, 0, ORG_IN,  0},
+};
+
 #ifdef DEBUG
 static void token_print(Token t)
 {
@@ -57,11 +87,31 @@ static void token_print(Token t)
             break;
     }
 }
+static void token_programmer_print(Token t)
+{
+    switch(t.type)
+    {
+        case TK_N_VALUE:
+            PRINT("[%lld] ", t.i);
+            break;
+        default:
+            PRINT("[%d %c] ", t.po, t.c);
+            break;
+    }
+}
 void expr_print(Expr* e)
 {
     for(size_t i = 0; i < e->size; i++)
     {
         token_print(e->data[i]);
+    }
+    PRINT("\n");
+}
+void expr_programmer_print(Expr* e)
+{
+    for(size_t i = 0; i < e->size; i++)
+    {
+        token_programmer_print(e->data[i]);
     }
     PRINT("\n");
 }
@@ -174,6 +224,8 @@ void expr_tests()
     expr_test("(", NAN);
     expr_test("43009***93420***20+", NAN);
     expr_test("20++", NAN);
+
+    // TODO: programmer mode test cases
 }
 #endif
 
@@ -196,7 +248,6 @@ static inline Token token_default()
 
 static OperatorType scan_operator(const char* str, const char** next, OperatorOrg possible_org)
 {
-    OperatorType o = OP_NUL;
     for(size_t i = 0; i < OP_SIZE; i++)
     {
         const char* _next = str;
@@ -226,6 +277,38 @@ static OperatorType scan_operator(const char* str, const char** next, OperatorOr
         }
     }
     return OP_NUL;
+}
+static ProgrammerOperatorType scan_programmer_operator(const char* str, const char** next, OperatorOrg possible_org)
+{
+    for(size_t i = 0; i < OP_PROG_SIZE; i++)
+    {
+        const char* _next = str;
+        if(possible_org == ORG_PRE && OPS_PROGRAMMER[i].org != ORG_PRE)
+        {
+            continue;
+        }
+        else if(possible_org != ORG_POST && OPS_PROGRAMMER[i].org == ORG_POST)
+        {
+            continue;
+        }
+
+        if(*str == OPS_PROGRAMMER[i].str[0])
+        {
+            while(OPS_PROGRAMMER[i].str[_next - str] != '\0' && *_next == OPS_PROGRAMMER[i].str[_next - str])
+            {
+                _next++;
+            }
+            if(OPS_PROGRAMMER[i].str[_next - str] == '\0')
+            {
+                if(next)
+                {
+                    *next = _next;
+                }
+                return (ProgrammerOperatorType)i;
+            }
+        }
+    }
+    return OP_PROG_NUL;
 }
 
 static void expr_tokenize(const char* str, Expr* e)
@@ -303,6 +386,67 @@ static void expr_tokenize(const char* str, Expr* e)
         e->data[e->size++] = t;
     }
 }
+static void expr_programmer_tokenize(const char* str, Expr* e)
+{
+    OperatorOrg possible_org = ORG_PRE;
+
+    for(const char* c = str; (*c != '\0') && (e->size < EXPR_CAPACITY);)
+    {
+        const char* next = c;
+        Token t = token_default();
+        if(isdigit(*c) || isvariable(*c))
+        {
+            if(isdigit(*c))
+            {
+                t.type = TK_N_VALUE;
+                t.i = _strtoi64(c, (char**)&next, 10);
+            }
+            else if(isvariable(*c))
+            {
+                t.type = TK_N_VAR;
+                t.c = *c;
+                next++;
+            }
+            possible_org = ORG_POST;
+        }
+        else 
+        {
+            t.c = *c;
+            switch(*c)
+            {
+                case '(':
+                    t.type = TK_BRACKET_OPEN;
+                    possible_org = ORG_PRE;
+                    next++;
+                    break;
+                case ')':
+                    t.type = TK_BRACKET_CLOSE;
+                    next++;
+                    break;
+
+                default:
+                    t.po = scan_programmer_operator(c, &next, possible_org);
+                    if(t.po != OP_PROG_NUL)
+                    {
+                        t.type = TK_OPERATOR;
+                        if(OPS_PROGRAMMER[t.po].org != ORG_POST)
+                        {
+                            possible_org = ORG_PRE;
+                        }
+                    }
+                    else
+                    {
+                        t.type = TK_UNKNOWN;
+                        next++;
+                    }
+                    break;
+            }
+        }
+
+        c = next;
+        e->data[e->size++] = t;
+    }
+}
 
 void expr_clear(Expr* e)
 {
@@ -322,18 +466,13 @@ static void evaluate_op(std::stack<Token>& ops, std::stack<Token>& values)
         values.push({.type = TK_N_VALUE, .d = NAN});
         return;
     }
-    // if(ops.top().type != TK_OPERATOR)
-    // {
-    //     ops.pop();
-    //     return;
-    // }
 
     int arg_count = OPS[ops.top().o].arg_count;
     if(arg_count == 1)
     {
         Token val1 = values.top(); values.pop();
 
-        val1.d = OPS[ops.top().o].func(val1.d, 0);
+        val1.d = OPS[ops.top().o].func_d(val1.d, 0);
         
         values.push(val1);
     }
@@ -351,14 +490,52 @@ static void evaluate_op(std::stack<Token>& ops, std::stack<Token>& values)
 
         Token val1 = values.top(); values.pop();
 
-        double result = OPS[ops.top().o].func(val1.d, val2.d);
+        double result = OPS[ops.top().o].func_d(val1.d, val2.d);
 
         values.push({.type = TK_N_VALUE, .d = result});
     }
     ops.pop();
 }
+static void evaluate_programmer_op(std::stack<Token>& ops, std::stack<Token>& values)
+{
+    if(values.empty() || ops.empty())
+    {
+        while(!ops.empty()) ops.pop();
+        while(!values.empty()) values.pop();
+        values.push({.type = TK_N_VALUE, .i = 0});
+        return;
+    }
 
-// TODO: still some bugs
+    int arg_count = OPS_PROGRAMMER[ops.top().po].arg_count;
+    if(arg_count == 1)
+    {
+        Token val1 = values.top(); values.pop();
+
+        val1.i = OPS_PROGRAMMER[ops.top().po].func_i(val1.i, 0);
+        
+        values.push(val1);
+    }
+    else if(arg_count == 2)
+    {
+        Token val2 = values.top(); values.pop();
+
+        if(values.empty() || ops.empty())
+        {
+            while(!ops.empty()) ops.pop();
+            while(!values.empty()) values.pop();
+            values.push({.type = TK_N_VALUE, .i = 0});
+            return;
+        }
+
+        Token val1 = values.top(); values.pop();
+
+        int64_t result = OPS_PROGRAMMER[ops.top().po].func_i(val1.i, val2.i);
+
+        values.push({.type = TK_N_VALUE, .i = result});
+    }
+    ops.pop();
+}
+
 static double expr_evaluate(Expr* e)
 {
     // TODO: Highly illegal. Make a custom data structure instead of using this trash
@@ -444,8 +621,93 @@ static double expr_evaluate(Expr* e)
     }
     return values.top().d;
 }
+static int64_t expr_programmer_evaluate(Expr* e)
+{
+    // TODO: Highly illegal. Make a custom data structure instead of using this trash
+    std::stack<Token> ops;
+    std::stack<Token> values;
 
-// TODO: It is not a good idea to re-tokenize everything each time we call the function.
+    for(size_t i = 0; i < e->size; i++)
+    {
+        switch(e->data[i].type)
+        {
+            case TK_BRACKET_OPEN:
+                if(i != 0 && (e->data[i-1].type == TK_N_VALUE))
+                {
+                    while(!ops.empty() && OPS_PROGRAMMER[OP_PROG_MUL].precedence < OPS_PROGRAMMER[ops.top().po].precedence && ops.top().type == TK_OPERATOR)
+                    {
+                        evaluate_programmer_op(ops, values);
+                    }
+                    ops.push({.type = TK_OPERATOR, .c = '*', .po = OP_PROG_MUL});
+                }
+                else if(i > 1 && e->data[i-1].type == TK_BRACKET_CLOSE && e->data[i-2].type == TK_N_VALUE)
+                {
+                    while(!ops.empty() && OPS_PROGRAMMER[OP_PROG_MUL].precedence < OPS_PROGRAMMER[ops.top().po].precedence && ops.top().type == TK_OPERATOR)
+                    {
+                        evaluate_programmer_op(ops, values);
+                    }
+                    ops.push({.type = TK_OPERATOR, .c = '*', .po = OP_PROG_MUL});
+                }
+                ops.push(e->data[i]);
+                break;
+            case TK_BRACKET_CLOSE:
+                while(!ops.empty() && ops.top().type != TK_BRACKET_OPEN)
+                {
+                    evaluate_programmer_op(ops, values);
+                }
+                if(!ops.empty()) ops.pop();
+                break;
+
+            case TK_N_VALUE:
+                if(i != 0 && (e->data[i-1].type == TK_BRACKET_CLOSE || e->data[i-1].type == TK_N_VALUE))
+                {
+                    if(e->data[i-1].type == TK_N_VALUE)
+                    {
+                        values.push(e->data[i]);
+                        ops.push({.type = TK_OPERATOR, .c = '*', .po = OP_PROG_MUL});
+                    }
+                    while(!ops.empty() && OPS_PROGRAMMER[OP_PROG_MUL].precedence < OPS_PROGRAMMER[ops.top().po].precedence && ops.top().type == TK_OPERATOR)
+                    {
+                        evaluate_programmer_op(ops, values);
+                    }
+                    if(e->data[i-1].type == TK_BRACKET_CLOSE) 
+                    {
+                        values.push(e->data[i]);
+                        ops.push({.type = TK_OPERATOR, .c = '*', .po = OP_PROG_MUL});
+                    }
+                }
+                else
+                {
+                    values.push(e->data[i]);
+                }
+                break;
+            case TK_OPERATOR:
+                if(i != 0 && e->data[i-1].type == TK_N_VALUE && OPS_PROGRAMMER[e->data[i].po].org == ORG_PRE)
+                {
+                    ops.push({.type = TK_OPERATOR, .c = '*', .po = OP_PROG_MUL});
+                }
+                while(!ops.empty() && ops.top().type != TK_BRACKET_OPEN && OPS_PROGRAMMER[e->data[i].po].precedence < OPS_PROGRAMMER[ops.top().po].precedence)
+                {
+                    evaluate_programmer_op(ops, values);
+                }
+                ops.push(e->data[i]);
+                break;
+
+            default:
+                return 0;
+                break;
+        }
+    }
+
+    if(values.empty()) return 0;
+    while(!ops.empty() && !values.empty())
+    {
+        evaluate_programmer_op(ops, values);
+    }
+    return values.top().i;
+}
+
+// TODO: It is a horrible idea to re-tokenize everything each time we call the function.
 // We should have a way of only tokenizing the string when we need to.
 double expr_evaluate_x(const char *str, double x)
 {
@@ -475,4 +737,13 @@ double expr_evaluate(const char* str)
     expr_print(&e);
 
     return expr_evaluate(&e);
+}
+int64_t expr_programmer_evaluate(const char* str)
+{
+    Expr e;
+    expr_clear(&e);
+    expr_programmer_tokenize(str, &e);
+    expr_programmer_print(&e);
+
+    return expr_programmer_evaluate(&e);
 }

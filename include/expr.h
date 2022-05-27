@@ -45,6 +45,35 @@ enum OperatorType
     OP_SIZE
 };
 
+enum ProgrammerOperatorType
+{
+    /* binary operators */
+    OP_PROG_ADD = 0,
+    OP_PROG_SUB,
+    OP_PROG_MUL,
+    OP_PROG_DIV,
+    OP_PROG_MOD,
+    /* bitwise operators */
+    OP_PROG_AND,
+    OP_PROG_OR,
+    OP_PROG_XOR,
+    OP_PROG_LSH,
+    OP_PROG_RSH,
+    OP_PROG_ROL,
+    OP_PROG_ROR,
+
+    /* prefix unary operators */
+    OP_PROG_POS,
+    OP_PROG_NEG,
+    OP_PROG_ABS,
+    /* bitwise operators */
+    OP_PROG_NOT,
+
+    OP_PROG_NUL,
+
+    OP_PROG_SIZE
+};
+
 struct Token
 {
     TokenType type;
@@ -54,6 +83,7 @@ struct Token
         double d;
         int64_t i;
         OperatorType o;
+        ProgrammerOperatorType po;
     };
 };
 
@@ -67,6 +97,7 @@ struct Expr
 void expr_clear(Expr* e);
 double expr_evaluate(const char* str);
 double expr_evaluate_x(const char* str, double x);
+int64_t expr_programmer_evaluate(const char* str);
 
 #ifdef DEBUG
 void expr_print(Expr* e);

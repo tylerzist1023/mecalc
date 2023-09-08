@@ -51,27 +51,27 @@ struct Operator
 
 Operator OPS_PROGRAMMER[] =
 {
-    {/* OP_PROG_ADD */       "+",        2, 5, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs+rhs;} },
-    {/* OP_PROG_SUB */       "-",        2, 5, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs-rhs;} },
-    {/* OP_PROG_MUL */       "*",        2, 6, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs*rhs;} },
-    {/* OP_PROG_DIV */       "/",        2, 6, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs/rhs;} },
-    {/* OP_PROG_MOD */       "%",        2, 6, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs%rhs;} },
+    {/* OP_PROG_ADD */       .str="+",        .arg_count=2, .precedence=5, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs+rhs;} },
+    {/* OP_PROG_SUB */       .str="-",        .arg_count=2, .precedence=5, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs-rhs;} },
+    {/* OP_PROG_MUL */       .str="*",        .arg_count=2, .precedence=6, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs*rhs;} },
+    {/* OP_PROG_DIV */       .str="/",        .arg_count=2, .precedence=6, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs/rhs;} },
+    {/* OP_PROG_MOD */       .str="%",        .arg_count=2, .precedence=6, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs%rhs;} },
     
-    {/* OP_PROG_AND */       "&",        2, 3, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs&rhs;} },
-    {/* OP_PROG_OR */        "|",        2, 1, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs|rhs;} },
-    {/* OP_PROG_XOR */       "^",        2, 2, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs^rhs;} },
-    {/* OP_PROG_LSH */       "<<",       2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs<<rhs;} },
-    {/* OP_PROG_RSH */       ">>",       2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs>>rhs;} },
-    {/* OP_PROG_ROL */       "rol",      2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return _rotl64(lhs, rhs);} },
-    {/* OP_PROG_ROR */       "ror",      2, 4, ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return _rotr64(lhs, rhs);} },
+    {/* OP_PROG_AND */       .str="&",        .arg_count=2, .precedence=3, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs&rhs;} },
+    {/* OP_PROG_OR */        .str="|",        .arg_count=2, .precedence=1, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs|rhs;} },
+    {/* OP_PROG_XOR */       .str="^",        .arg_count=2, .precedence=2, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs^rhs;} },
+    {/* OP_PROG_LSH */       .str="<<",       .arg_count=2, .precedence=4, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs<<rhs;} },
+    {/* OP_PROG_RSH */       .str=">>",       .arg_count=2, .precedence=4, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return lhs>>rhs;} },
+    {/* OP_PROG_ROL */       .str="rol",      .arg_count=2, .precedence=4, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return _rotl64(lhs, rhs);} },
+    {/* OP_PROG_ROR */       .str="ror",      .arg_count=2, .precedence=4, .org=ORG_IN,  .func_i=[](int64_t lhs, int64_t rhs) -> int64_t {return _rotr64(lhs, rhs);} },
 
-    {/* OP_PROG_POS */       "+",        1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return x;} },
-    {/* OP_PROG_NEG */       "-",        1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return -x;} },
-    {/* OP_PROG_ABS */       "abs",      1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return abs(x);} },
+    {/* OP_PROG_POS */       .str="+",        .arg_count=1, .precedence=8, .org=ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return x;} },
+    {/* OP_PROG_NEG */       .str="-",        .arg_count=1, .precedence=8, .org=ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return -x;} },
+    {/* OP_PROG_ABS */       .str="abs",      .arg_count=1, .precedence=8, .org=ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return abs(x);} },
     
-    {/* OP_PROG_NOT */       "~",        1, 8, ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return ~x;} },
+    {/* OP_PROG_NOT */       .str="~",        .arg_count=1, .precedence=8, .org=ORG_PRE, .func_i=[](int64_t x, int64_t _) -> int64_t {return ~x;} },
 
-    {/* OP_PROG_NUL */       "",         0, 0, ORG_IN,  0},
+    {/* OP_PROG_NUL */       .str="",         .arg_count=0, .precedence=0, .org=ORG_IN},
 };
 
 #ifdef DEBUG
@@ -707,26 +707,26 @@ static int64_t expr_programmer_evaluate(Expr* e)
     return values.top().i;
 }
 
-// TODO: It is a horrible idea to re-tokenize everything each time we call the function.
-// We should have a way of only tokenizing the string when we need to.
-double expr_evaluate_x(const char *str, double x)
+void expr_evaluate_x(const char *str, double* x_vals, double* y_vals, size_t vals_count)
 {
     Expr e;
     expr_clear(&e);
     expr_tokenize(str, &e);
 
-    for(size_t i = 0; i < e.size; i++)
+    for(size_t i = 0; i < vals_count; i++)
     {
-        if(e.data[i].type == TK_N_VAR && e.data[i].c == 'x')
+        for(int j = 0; j < e.size; j++)
         {
-            e.data[i].type = TK_N_VALUE;
-            e.data[i].d = x;
+            if(e.data[j].type == TK_N_VAR && e.data[j].c == 'x')
+            {
+                e.data[j].type = TK_N_VALUE;
+                e.data[j].d = x_vals[i];
+            }
         }
+        y_vals[i] = expr_evaluate(&e);
     }
 
     expr_print(&e);
-
-    return expr_evaluate(&e);
 }
 
 double expr_evaluate(const char* str)

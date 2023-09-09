@@ -20,8 +20,8 @@ struct Operator
     OperatorOrg org;
     union
     {
-    double (*func_d)(double, double);
-    int64_t (*func_i)(int64_t, int64_t);
+        double (*func_d)(double, double);
+        int64_t (*func_i)(int64_t, int64_t);
     };
 } OPS[] = 
 {
@@ -717,7 +717,7 @@ void expr_evaluate_x(const char *str, double* x_vals, double* y_vals, size_t val
     {
         for(int j = 0; j < e.size; j++)
         {
-            if(e.data[j].type == TK_N_VAR && e.data[j].c == 'x')
+            if(e.data[j].c == 'x')
             {
                 e.data[j].type = TK_N_VALUE;
                 e.data[j].d = x_vals[i];

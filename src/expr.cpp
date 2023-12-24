@@ -538,7 +538,6 @@ static void evaluate_programmer_op(std::stack<Token>& ops, std::stack<Token>& va
 
 static double expr_evaluate(Expr* e)
 {
-    // TODO: Highly illegal. Make a custom data structure instead of using this trash
     std::stack<Token> ops;
     std::stack<Token> values;
 
